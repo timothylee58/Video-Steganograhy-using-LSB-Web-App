@@ -4,7 +4,8 @@ Video steganography is a vital medium for covert communication, which enables th
 
 One of the primary objectives of the project is to increase the embedding capacity further while maintaining the visual integrity of the video. Additionally, with advanced LSB embedding techniques and encryption mechanisms, the systems maximise the amount of data hidden within the video while safeguarding its security and confidentiality. Rigorous testing and evaluation validate the system’s performance and demonstrate its effectiveness in securely embedding and extracting hidden data within video files. The developed video steganography system utilizing the LSB technique offers an efficient and reliable solution for covert communication. 
 
-Built on the research technique, a production-ready web application for hiding encrypted messages within videos using the LSB (Least Significant Bit) technique. Supports resolutions up to 1440p with configurable encryption strength and cipher modes.
+Built on the research technique, a production-ready web application for hiding encrypted messages within videos using the LSB (Least Significant Bit) technique was created. 
+It supports resolutions up to 1440p with configurable encryption strength and cipher modes.
 
 # VidStega app
 
