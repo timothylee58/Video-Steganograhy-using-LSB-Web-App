@@ -17,3 +17,34 @@ Built on the research technique, a production-ready web application for hiding e
 - Capacity Calculator: Check how much data can be hidden before encoding
 - Real-time Progress: WebSocket updates for long-running operations
 - RESTful API: Easy integration with any frontend or mobile app 
+
+📄 License
+MIT License - see LICENSE file for details.
+
+⚠️ Legal Disclaimer
+This software is provided for educational and legitimate privacy purposes only. Users are responsible for complying with local laws and regulations. The authors assume no liability for misuse.
+
+Appropriate Uses:
+
+- Personal privacy protection
+- Secure business communication
+- Digital watermarking
+- Data backup and recovery
+
+Inappropriate Uses:
+
+- Illegal communication
+- Circumventing lawful surveillance
+- Copyright infringement
+- Distribution of illegal content
+
+
+🙏 Acknowledgments
+
+- OpenCV for video processing
+- Cryptography library for encryption
+- FastAPI for the web framework
+- The steganography research community
+
+
+#Built with ❤️ for privacy-conscious users worldwide
