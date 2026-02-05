@@ -6,6 +6,8 @@ One of the primary objectives of the project is to increase the embedding capaci
 
 Built on the research technique, a production-ready web application for hiding encrypted messages within videos using the LSB (Least Significant Bit) technique. Supports resolutions up to 1440p with configurable encryption strength and cipher modes.
 
+# VidStega app
+
 ✨ Features
 
 - Multiple Resolutions: Support for 480p, 720p, 1080p, and 1440p videos
