@@ -2,8 +2,9 @@
 venv/
 env/
 
-# Uploaded files
+# Uploaded and output files
 uploads/
+outputs/
 
 # Demo videos (generated)
 demo_videos/

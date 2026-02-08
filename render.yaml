@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: vidstega
+    runtime: docker
+    plan: free
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SOCKETIO_ASYNC_MODE
+        value: eventlet
+      - key: MAX_UPLOAD_MB
+        value: "500"
+    healthCheckPath: /health

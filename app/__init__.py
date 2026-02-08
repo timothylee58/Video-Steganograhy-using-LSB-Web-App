@@ -3,6 +3,7 @@ VidStega - Video Steganography Web Application
 Production-ready application for hiding encrypted messages in videos using LSB technique.
 """
 
+import os
 from flask import Flask
 from flask_cors import CORS
 from flask_socketio import SocketIO
@@ -12,16 +13,17 @@ socketio = SocketIO()
 
 def create_app(config_name='default'):
     """Application factory for creating Flask app instances."""
-    app = Flask(__name__, 
+    app = Flask(__name__,
                 template_folder='../templates',
                 static_folder='../static')
-    
+
     # Load configuration
     app.config.from_object(get_config(config_name))
-    
+
     # Initialize extensions
     CORS(app, resources={r"/api/*": {"origins": "*"}})
-    socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
+    async_mode = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
+    socketio.init_app(app, cors_allowed_origins="*", async_mode=async_mode)
     
     # Register blueprints
     from app.routes import main_bp, api_bp
