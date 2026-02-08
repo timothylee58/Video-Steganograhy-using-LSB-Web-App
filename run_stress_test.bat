@@ -1,0 +1,68 @@
+@echo off
+REM VidStega Stress Test Runner (Windows)
+
+echo ========================================
+echo VidStega Stress Test Suite
+echo ========================================
+echo.
+
+REM Check Python version
+python --version
+
+REM Check if virtual environment exists
+if not exist "venv" (
+    echo Warning: Virtual environment not found. Creating...
+    python -m venv venv
+)
+
+REM Activate virtual environment
+echo Activating virtual environment...
+call venv\Scripts\activate.bat
+
+REM Install/upgrade required packages
+echo Installing dependencies...
+pip install -q --upgrade pip
+pip install -q numpy opencv-python psutil reedsolo
+
+REM Check system resources
+echo.
+echo System Resources:
+echo ----------------
+python -c "import psutil; print(f'  CPU Cores: {psutil.cpu_count()}'); print(f'  Total RAM: {psutil.virtual_memory().total / (1024**3):.1f} GB'); print(f'  Available RAM: {psutil.virtual_memory().available / (1024**3):.1f} GB')"
+
+REM Create output directory
+if not exist "stress_test_results" mkdir stress_test_results
+
+echo.
+echo ========================================
+echo Starting Stress Tests...
+echo ========================================
+echo.
+echo This will test:
+echo   - 4 resolutions (480p, 720p, 1080p, 1440p)
+echo   - 3 encryption strengths (AES-128, 192, 256)
+echo   - 4 cipher modes (CBC, CTR, GCM, CFB)
+echo   - 5 video lengths (1s to 20s)
+echo.
+echo Estimated time: 45-60 minutes
+echo Results will be saved to: stress_test_results\
+echo.
+
+pause
+
+REM Run the stress test
+python stress_test.py
+
+echo.
+echo ========================================
+echo Stress Test Complete!
+echo ========================================
+echo.
+echo Results available at:
+echo   - stress_test_results\stress_test_results.json
+echo   - stress_test_results\analysis_report.md
+echo.
+echo Review SCALABILITY_ANALYSIS.md for detailed recommendations.
+echo.
+
+pause

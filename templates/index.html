@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VidStega | Advanced Video Steganography Platform</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Dropzone CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/dropzone@5/dist/min/dropzone.min.css" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        * { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+
+        body {
+            background: linear-gradient(135deg, #0a0b1e 0%, #1a1b3e 100%);
+            min-height: 100vh;
+        }
+
+        /* Glass morphism effect */
+        .glass {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .glass-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-hover:hover {
+            background: rgba(15, 23, 42, 0.9);
+            border-color: rgba(99, 102, 241, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 48px 0 rgba(99, 102, 241, 0.3);
+        }
+
+        /* Gradient backgrounds */
+        .bg-gradient-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .bg-gradient-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .bg-gradient-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        /* Animated gradient background */
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .animate-gradient {
+            background: linear-gradient(270deg, #667eea, #764ba2, #f093fb, #4facfe);
+            background-size: 800% 800%;
+            animation: gradientShift 15s ease infinite;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+        }
+
+        /* Dropzone custom styling */
+        .dropzone {
+            background: rgba(15, 23, 42, 0.5);
+            border: 2px dashed rgba(99, 102, 241, 0.5);
+            border-radius: 1rem;
+            transition: all 0.3s ease;
+            min-height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .dropzone:hover {
+            border-color: rgba(99, 102, 241, 0.8);
+            background: rgba(15, 23, 42, 0.7);
+        }
+
+        .dropzone .dz-message {
+            margin: 2em 0;
+            color: #e5e7eb;
+        }
+
+        /* Progress bar animation */
+        @keyframes progressFlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
+        }
+
+        .progress-animated {
+            background: linear-gradient(90deg, #667eea, #764ba2, #667eea);
+            background-size: 200% 100%;
+            animation: progressFlow 1.5s linear infinite;
+        }
+
+        /* Fade animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        /* Pulse animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse-slow {
+            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Card shine effect */
+        .card-shine {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-shine::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: 0.5s;
+        }
+
+        .card-shine:hover::before {
+            left: 100%;
+        }
+
+        /* Badge styles */
+        .badge-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        /* Input focus glow */
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: rgba(99, 102, 241, 0.8);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        /* Encryption Guide Tooltip */
+        .encryption-guide-btn {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: bold;
+            cursor: help;
+            margin-left: 0.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .encryption-guide-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+        }
+
+        .encryption-guide-tooltip {
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%) translateY(-10px);
+            width: 400px;
+            max-width: 90vw;
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 1rem;
+            padding: 1.25rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            z-index: 1000;
+            margin-bottom: 0.5rem;
+        }
+
+        .encryption-guide-btn:hover .encryption-guide-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .encryption-guide-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 8px solid transparent;
+            border-top-color: rgba(15, 23, 42, 0.98);
+        }
+
+        .encryption-guide-tooltip h4 {
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #a78bfa;
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .encryption-guide-tooltip .guide-section {
+            margin-bottom: 0.75rem;
+        }
+
+        .encryption-guide-tooltip .guide-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .encryption-guide-tooltip .guide-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #60a5fa;
+            margin-bottom: 0.375rem;
+        }
+
+        .encryption-guide-tooltip .guide-item {
+            font-size: 0.7rem;
+            color: #cbd5e1;
+            line-height: 1.4;
+            margin-bottom: 0.25rem;
+            padding-left: 1rem;
+            position: relative;
+        }
+
+        .encryption-guide-tooltip .guide-item::before {
+            content: '•';
+            position: absolute;
+            left: 0;
+            color: #667eea;
+        }
+
+        .encryption-guide-tooltip .guide-badge {
+            display: inline-block;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            font-size: 0.625rem;
+            font-weight: 600;
+            margin-left: 0.25rem;
+        }
+
+        .guide-badge-recommended {
+            background: rgba(34, 197, 94, 0.2);
+            color: #86efac;
+        }
+
+        .guide-badge-fast {
+            background: rgba(59, 130, 246, 0.2);
+            color: #93c5fd;
+        }
+
+        .guide-badge-secure {
+            background: rgba(168, 85, 247, 0.2);
+            color: #c084fc;
+        }
+
+        /* Checkbox custom style */
+        .custom-checkbox {
+            appearance: none;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid rgba(148, 163, 184, 0.5);
+            border-radius: 0.25rem;
+            background: rgba(15, 23, 42, 0.5);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .custom-checkbox:checked {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+        }
+
+        .custom-checkbox:checked::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 0.875rem;
+        }
+    </style>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f5f7ff',
+                            100: '#ebf0ff',
+                            200: '#d6e0ff',
+                            300: '#a8c0ff',
+                            400: '#667eea',
+                            500: '#5568d3',
+                            600: '#4451b8',
+                            700: '#353d99',
+                            800: '#262d73',
+                            900: '#1a2054',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen text-gray-100">
+    <!-- Navigation -->
+    <nav class="glass sticky top-0 z-50 border-b border-white/10">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                        V
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+                            VidStega
+                        </h1>
+                        <p class="text-xs text-gray-400">Advanced Video Steganography</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-4">
+                    <span class="hidden md:inline-flex items-center px-3 py-1 rounded-full bg-green-500/20 text-green-300 text-xs font-medium">
+                        <span class="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+                        Online
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Header Section -->
+        <div class="glass rounded-2xl p-6 sm:p-8 mb-8 card-shine fade-in">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+                <div class="mb-4 lg:mb-0">
+                    <div class="inline-flex items-center px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 mb-3">
+                        <span class="text-xs font-semibold text-purple-300">🔐 AES-256 • AI-POWERED</span>
+                    </div>
+                    <h2 class="text-3xl sm:text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                        Hide Messages in Video Frames
+                    </h2>
+                    <p class="text-gray-300 max-w-2xl">
+                        Upload a video, choose frames, encrypt with a password, then embed and download the stego-video.
+                        To recover, upload the stego-video and extract using the same settings.
+                    </p>
+                    <p class="text-xs text-gray-500 mt-2">
+                        ⚡ If Redis/Celery isn't running, the server falls back to synchronous processing.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Status Alert -->
+            <div id="statusAlert" class="hidden mt-6 p-4 rounded-xl border" role="alert">
+                <div id="statusContent" class="flex items-start space-x-3">
+                    <span id="statusIcon" class="text-2xl flex-shrink-0"></span>
+                    <div class="flex-1">
+                        <div id="statusTitle" class="font-semibold"></div>
+                        <div id="statusMessage" class="text-sm opacity-90 mt-1"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="grid lg:grid-cols-2 gap-8">
+
+            <!-- EMBED SECTION -->
+            <div class="glass rounded-2xl p-6 sm:p-8 fade-in" style="animation-delay: 0.1s">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-2xl font-bold flex items-center">
+                        <span class="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center text-white mr-3">📤</span>
+                        Embed (Encode)
+                    </h3>
+                </div>
+
+                <!-- Video Upload Dropzone -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Video File</label>
+                    <form id="embedVideoDropzone" class="dropzone cursor-pointer">
+                        <div class="dz-message text-center" data-dz-message>
+                            <span class="text-5xl mb-3 block">🎬</span>
+                            <span class="text-lg font-medium">Drop video here or click to upload</span>
+                            <span class="text-sm text-gray-400 block mt-2">MP4, AVI, MOV, MKV, WEBM (Max 2GB)</span>
+                        </div>
+                    </form>
+                    <div id="embedVideoInfo" class="hidden mt-3 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-sm">
+                        <div class="font-mono text-green-300"></div>
+                    </div>
+                </div>
+
+                <!-- Frame Selection -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Frame Selection</label>
+                    <input id="embedFrames" type="text"
+                        class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-purple-500 transition-all"
+                        placeholder="e.g., 0, 10, 25, 40">
+
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        <div class="flex items-center bg-gray-800/50 rounded-lg border border-gray-600/50 overflow-hidden">
+                            <span class="px-3 py-2 bg-gray-700/50 text-xs text-gray-300">AI Pick</span>
+                            <input id="embedAiPickCount" type="number" min="1" max="50" value="10"
+                                class="w-20 px-3 py-2 bg-transparent border-none text-white text-sm focus:outline-none">
+                        </div>
+                        <button onclick="aiPickFrames()"
+                            class="px-4 py-2 bg-gradient-primary rounded-lg text-white font-medium hover:shadow-lg hover:scale-105 transition-all text-sm">
+                            🤖 Auto-Select
+                        </button>
+                        <button onclick="calcCapacity()"
+                            class="px-4 py-2 bg-gray-700/50 rounded-lg text-gray-200 font-medium hover:bg-gray-600/50 transition-all text-sm border border-gray-600/50">
+                            📊 Capacity
+                        </button>
+                    </div>
+                    <div id="capacityInfo" class="hidden mt-3 p-3 rounded-lg bg-blue-500/10 border border-blue-500/30 text-sm text-blue-300"></div>
+                </div>
+
+                <!-- Message Input -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Secret Message</label>
+                    <textarea id="embedMessage" rows="4"
+                        class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-purple-500 transition-all resize-none"
+                        placeholder="Type the message to hide..."></textarea>
+
+                    <div class="mt-2 text-sm text-gray-400">
+                        Or embed a file instead:
+                    </div>
+                    <input id="embedFile" type="file"
+                        class="w-full mt-2 px-4 py-2 bg-gray-800/50 border border-gray-600/50 rounded-lg text-white text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-purple-500/20 file:text-purple-300 hover:file:bg-purple-500/30">
+                    <div id="payloadInfo" class="hidden mt-2 text-xs text-gray-400"></div>
+                </div>
+
+                <!-- Encryption Settings -->
+                <div class="mb-2 flex items-center">
+                    <span class="text-sm font-semibold text-gray-200">🔐 Encryption Settings</span>
+                    <div class="encryption-guide-btn">
+                        ?
+                        <div class="encryption-guide-tooltip">
+                            <h4>🔐 Encryption & Cipher Mode Guide</h4>
+
+                            <div class="guide-section">
+                                <div class="guide-title">Encryption Strengths:</div>
+                                <div class="guide-item">AES-128 <span class="guide-badge guide-badge-fast">Fast</span> - Quick demos</div>
+                                <div class="guide-item">AES-192 - Balanced security & speed</div>
+                                <div class="guide-item">AES-256 <span class="guide-badge guide-badge-recommended">Recommended</span> - Military-grade</div>
+                            </div>
+
+                            <div class="guide-section">
+                                <div class="guide-title">Cipher Modes:</div>
+                                <div class="guide-item">GCM <span class="guide-badge guide-badge-recommended">Recommended</span> - Authenticated, tamper-proof</div>
+                                <div class="guide-item">CBC - Traditional, compatible</div>
+                                <div class="guide-item">CTR - Fast parallel processing</div>
+                                <div class="guide-item">CFB - Stream encryption</div>
+                            </div>
+
+                            <div class="guide-section">
+                                <div class="guide-title">Best Choice:</div>
+                                <div class="guide-item"><span class="guide-badge guide-badge-secure">AES-256 + GCM</span> for maximum security</div>
+                                <div class="guide-item">Use same settings to extract!</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                        <input id="embedPassword" type="password"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-purple-500 transition-all"
+                            placeholder="Enter password">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Encryption</label>
+                        <select id="embedKeySize"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-purple-500 transition-all">
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Cipher Mode</label>
+                        <select id="embedCipherMode"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-purple-500 transition-all">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Platform</label>
+                        <select id="embedPlatform"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-purple-500 transition-all">
+                            <option value="">None</option>
+                            <option value="generic">Generic</option>
+                            <option value="youtube">YouTube</option>
+                            <option value="instagram">Instagram</option>
+                            <option value="twitter">Twitter/X</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- AI Features -->
+                <div class="mb-6 p-4 rounded-xl bg-purple-500/10 border border-purple-500/20">
+                    <div class="text-sm font-semibold text-purple-300 mb-3">🤖 AI Features</div>
+                    <div class="space-y-2">
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" id="embedContentAware" checked class="custom-checkbox">
+                            <span class="text-sm text-gray-300">Content-aware embedding (high-texture regions)</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" id="embedCaption" class="custom-checkbox">
+                            <span class="text-sm text-gray-300">Generate innocent caption</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" id="embedDetect" class="custom-checkbox">
+                            <span class="text-sm text-gray-300">Suspicion detection (steganalysis)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex gap-3">
+                    <button onclick="startEmbed()"
+                        class="flex-1 py-3 bg-gradient-primary rounded-xl text-white font-semibold hover:shadow-2xl hover:scale-105 transition-all">
+                        🚀 Embed & Download
+                    </button>
+                </div>
+
+                <a id="downloadLink" href="#" download
+                    class="hidden mt-3 block w-full py-3 bg-gradient-success rounded-xl text-white font-semibold text-center hover:shadow-2xl hover:scale-105 transition-all">
+                    📥 Download Stego-Video
+                </a>
+
+                <!-- Progress -->
+                <div id="embedProgressWrap" class="hidden mt-6">
+                    <div id="embedStep" class="text-sm text-gray-400 mb-2"></div>
+                    <div class="w-full h-3 bg-gray-800 rounded-full overflow-hidden">
+                        <div id="embedProgress" class="h-full progress-animated" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- AI Results -->
+                <div id="embedAiResults" class="hidden mt-6 p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 text-sm text-blue-300"></div>
+            </div>
+
+            <!-- EXTRACT SECTION -->
+            <div class="glass rounded-2xl p-6 sm:p-8 fade-in" style="animation-delay: 0.2s">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-2xl font-bold flex items-center">
+                        <span class="w-8 h-8 bg-gradient-danger rounded-lg flex items-center justify-center text-white mr-3">📥</span>
+                        Extract (Decode)
+                    </h3>
+                </div>
+
+                <!-- Video Upload Dropzone -->
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Stego-Video File</label>
+                    <form id="extractVideoDropzone" class="dropzone cursor-pointer">
+                        <div class="dz-message text-center" data-dz-message>
+                            <span class="text-5xl mb-3 block">🔒</span>
+                            <span class="text-lg font-medium">Drop stego-video here</span>
+                            <span class="text-sm text-gray-400 block mt-2">MP4, AVI, MOV, MKV, WEBM</span>
+                        </div>
+                    </form>
+                    <div id="extractVideoInfo" class="hidden mt-3 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-sm">
+                        <div class="font-mono text-green-300"></div>
+                    </div>
+                </div>
+
+                <!-- Frame Range -->
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Start Frame</label>
+                        <input id="extractStart" type="number" min="0" value="0"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-purple-500 transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">End Frame</label>
+                        <input id="extractEnd" type="number" min="1" value="50"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-purple-500 transition-all">
+                    </div>
+                </div>
+
+                <!-- Decryption Settings -->
+                <div class="mb-2 flex items-center">
+                    <span class="text-sm font-semibold text-gray-200">🔓 Decryption Settings</span>
+                    <div class="encryption-guide-btn">
+                        ?
+                        <div class="encryption-guide-tooltip">
+                            <h4>🔐 Encryption & Cipher Mode Guide</h4>
+
+                            <div class="guide-section">
+                                <div class="guide-title">⚠️ Important:</div>
+                                <div class="guide-item">Must use EXACT same settings as embedding!</div>
+                                <div class="guide-item">Wrong settings = Failed extraction</div>
+                            </div>
+
+                            <div class="guide-section">
+                                <div class="guide-title">Encryption Strengths:</div>
+                                <div class="guide-item">AES-128 <span class="guide-badge guide-badge-fast">Fast</span></div>
+                                <div class="guide-item">AES-192 - Balanced</div>
+                                <div class="guide-item">AES-256 <span class="guide-badge guide-badge-secure">Most Secure</span></div>
+                            </div>
+
+                            <div class="guide-section">
+                                <div class="guide-title">Cipher Modes:</div>
+                                <div class="guide-item">GCM - Authenticated encryption</div>
+                                <div class="guide-item">CBC - Traditional mode</div>
+                                <div class="guide-item">CTR - Fast parallel</div>
+                                <div class="guide-item">CFB - Stream mode</div>
+                            </div>
+
+                            <div class="guide-section">
+                                <div class="guide-title">Troubleshooting:</div>
+                                <div class="guide-item">Check password is correct</div>
+                                <div class="guide-item">Verify frame range matches embed</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+                        <input id="extractPassword" type="password"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-purple-500 transition-all"
+                            placeholder="Enter password">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Encryption</label>
+                        <select id="extractKeySize"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-purple-500 transition-all">
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Cipher Mode</label>
+                        <select id="extractCipherMode"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-purple-500 transition-all">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Platform</label>
+                        <select id="extractPlatform"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white focus:border-purple-500 transition-all">
+                            <option value="">None</option>
+                            <option value="generic">Generic</option>
+                            <option value="youtube">YouTube</option>
+                            <option value="instagram">Instagram</option>
+                            <option value="twitter">Twitter/X</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- AI Features -->
+                <div class="mb-6 p-4 rounded-xl bg-pink-500/10 border border-pink-500/20">
+                    <div class="text-sm font-semibold text-pink-300 mb-3">🤖 AI Features</div>
+                    <div class="space-y-2">
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" id="extractContentAware" checked class="custom-checkbox">
+                            <span class="text-sm text-gray-300">Content-aware extraction (match embed)</span>
+                        </label>
+                        <label class="flex items-center space-x-3 cursor-pointer">
+                            <input type="checkbox" id="extractDetect" class="custom-checkbox">
+                            <span class="text-sm text-gray-300">Suspicion detection</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button onclick="startExtract()"
+                    class="w-full py-3 bg-gradient-danger rounded-xl text-white font-semibold hover:shadow-2xl hover:scale-105 transition-all">
+                    🔓 Extract Hidden Message
+                </button>
+
+                <!-- Progress -->
+                <div id="extractProgressWrap" class="hidden mt-6">
+                    <div id="extractStep" class="text-sm text-gray-400 mb-2"></div>
+                    <div class="w-full h-3 bg-gray-800 rounded-full overflow-hidden">
+                        <div id="extractProgress" class="h-full progress-animated" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Output -->
+                <div class="mt-6">
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Extracted Message</label>
+                    <textarea id="extractOutput" readonly rows="6"
+                        class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-green-300 font-mono text-sm focus:border-purple-500 transition-all resize-none"></textarea>
+                    <a id="extractedFileLink" href="#" download
+                        class="hidden mt-3 block w-full py-3 bg-gradient-success rounded-xl text-white font-semibold text-center hover:shadow-2xl hover:scale-105 transition-all">
+                        💾 Download Extracted File
+                    </a>
+                    <div id="extractAiResults" class="hidden mt-4 p-4 rounded-xl bg-pink-500/10 border border-pink-500/30 text-sm text-pink-300"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Grid -->
+        <div class="grid md:grid-cols-3 gap-6 mt-8">
+            <div class="glass rounded-xl p-6 card-shine fade-in" style="animation-delay: 0.3s">
+                <div class="text-4xl mb-3">🔐</div>
+                <h4 class="text-lg font-bold mb-2 text-white">Military-Grade Encryption</h4>
+                <p class="text-sm text-gray-400">AES-256 with multiple cipher modes (GCM, CBC, CTR, CFB) and PBKDF2 key derivation.</p>
+            </div>
+
+            <div class="glass rounded-xl p-6 card-shine fade-in" style="animation-delay: 0.4s">
+                <div class="text-4xl mb-3">🛡️</div>
+                <h4 class="text-lg font-bold mb-2 text-white">Error Correction</h4>
+                <p class="text-sm text-gray-400">Reed-Solomon codes protect data from corruption during compression and transmission.</p>
+            </div>
+
+            <div class="glass rounded-xl p-6 card-shine fade-in" style="animation-delay: 0.5s">
+                <div class="text-4xl mb-3">🤖</div>
+                <h4 class="text-lg font-bold mb-2 text-white">AI-Powered</h4>
+                <p class="text-sm text-gray-400">Content-aware embedding, auto captions, pattern detection, and smart compression.</p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center text-gray-500 text-sm mt-12 mb-6">
+            <p>VidStega • Flask web UI + async task support • AES-256 • Reed-Solomon ECC</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/dropzone@5/dist/min/dropzone.min.js"></script>
+
+    <script>
+        Dropzone.autoDiscover = false;
+
+        var state = {
+            embed: { fileId: null, filename: null, videoInfo: null, taskTimer: null },
+            extract: { fileId: null, filename: null, videoInfo: null, taskTimer: null },
+            config: null
+        };
+
+        function showBanner(type, title, message) {
+            const alert = document.getElementById('statusAlert');
+            const icon = document.getElementById('statusIcon');
+            const titleEl = document.getElementById('statusTitle');
+            const messageEl = document.getElementById('statusMessage');
+
+            alert.classList.remove('hidden', 'bg-blue-500/20', 'bg-green-500/20', 'bg-red-500/20', 'bg-yellow-500/20',
+                                  'border-blue-500/30', 'border-green-500/30', 'border-red-500/30', 'border-yellow-500/30');
+
+            const configs = {
+                success: { bg: 'bg-green-500/20', border: 'border-green-500/30', icon: '✅' },
+                danger: { bg: 'bg-red-500/20', border: 'border-red-500/30', icon: '❌' },
+                warning: { bg: 'bg-yellow-500/20', border: 'border-yellow-500/30', icon: '⚠️' },
+                info: { bg: 'bg-blue-500/20', border: 'border-blue-500/30', icon: 'ℹ️' }
+            };
+
+            const config = configs[type] || configs.info;
+            alert.classList.add(config.bg, config.border);
+            icon.textContent = config.icon;
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+        }
+
+        function clearBanner() {
+            document.getElementById('statusAlert').classList.add('hidden');
+        }
+
+        function parseCsvInts(text) {
+            if (!text) return [];
+            return text.split(',')
+                .map(v => v.trim())
+                .filter(Boolean)
+                .map(v => parseInt(v, 10))
+                .filter(n => Number.isFinite(n) && n >= 0);
+        }
+
+        function setProgress(prefix, progress, step) {
+            const wrap = document.getElementById(prefix + 'ProgressWrap');
+            const bar = document.getElementById(prefix + 'Progress');
+            const stepEl = document.getElementById(prefix + 'Step');
+            if (wrap) wrap.classList.remove('hidden');
+            if (bar) bar.style.width = Math.max(0, Math.min(100, progress)) + '%';
+            if (stepEl) stepEl.textContent = step || '';
+        }
+
+        function stopPolling(which) {
+            if (state[which].taskTimer) {
+                clearInterval(state[which].taskTimer);
+                state[which].taskTimer = null;
+            }
+        }
+
+        function populateSelect(selectId, values, fallback) {
+            const el = document.getElementById(selectId);
+            if (!el) return;
+            el.innerHTML = '';
+            (values || []).forEach(v => {
+                const opt = document.createElement('option');
+                opt.value = v;
+                opt.textContent = v;
+                el.appendChild(opt);
+            });
+            if (fallback && el.options.length === 0) {
+                const opt2 = document.createElement('option');
+                opt2.value = fallback;
+                opt2.textContent = fallback;
+                el.appendChild(opt2);
+            }
+        }
+
+        function loadConfig() {
+            return axios.get('/api/config')
+                .then(res => {
+                    state.config = res.data;
+                    populateSelect('embedKeySize', res.data.encryption_strengths, 'AES-256');
+                    populateSelect('extractKeySize', res.data.encryption_strengths, 'AES-256');
+                    populateSelect('embedCipherMode', res.data.cipher_modes, 'GCM');
+                    populateSelect('extractCipherMode', res.data.cipher_modes, 'GCM');
+                })
+                .catch(() => {
+                    populateSelect('embedKeySize', ['AES-256'], 'AES-256');
+                    populateSelect('extractKeySize', ['AES-256'], 'AES-256');
+                    populateSelect('embedCipherMode', ['GCM'], 'GCM');
+                    populateSelect('extractCipherMode', ['GCM'], 'GCM');
+                });
+        }
+
+        // Initialize Dropzones
+        const embedDropzone = new Dropzone('#embedVideoDropzone', {
+            url: '/api/upload',
+            paramName: 'video',
+            maxFilesize: 2048,
+            maxFiles: 1,
+            acceptedFiles: 'video/*',
+            addRemoveLinks: true,
+            success: function(file, response) {
+                state.embed.fileId = response.file_id;
+                state.embed.filename = response.filename;
+                state.embed.videoInfo = response.video_info;
+
+                const infoEl = document.getElementById('embedVideoInfo');
+                const vi = response.video_info || {};
+                infoEl.classList.remove('hidden');
+                infoEl.querySelector('div').innerHTML =
+                    `<strong>Uploaded:</strong> ${response.filename || ''}<br>` +
+                    `<strong>Frames:</strong> ${vi.total_frames || '?'} • ` +
+                    `<strong>Resolution:</strong> ${vi.width || '?'}x${vi.height || '?'} • ` +
+                    `<strong>FPS:</strong> ${vi.fps || '?'}`;
+
+                showBanner('success', 'Upload Complete', 'Video uploaded successfully.');
+            },
+            error: function(file, message) {
+                showBanner('danger', 'Upload Failed', typeof message === 'string' ? message : message.error);
+            }
+        });
+
+        const extractDropzone = new Dropzone('#extractVideoDropzone', {
+            url: '/api/upload',
+            paramName: 'video',
+            maxFilesize: 2048,
+            maxFiles: 1,
+            acceptedFiles: 'video/*',
+            addRemoveLinks: true,
+            success: function(file, response) {
+                state.extract.fileId = response.file_id;
+                state.extract.filename = response.filename;
+                state.extract.videoInfo = response.video_info;
+
+                const infoEl = document.getElementById('extractVideoInfo');
+                const vi = response.video_info || {};
+                infoEl.classList.remove('hidden');
+                infoEl.querySelector('div').innerHTML =
+                    `<strong>Uploaded:</strong> ${response.filename || ''}<br>` +
+                    `<strong>Frames:</strong> ${vi.total_frames || '?'} • ` +
+                    `<strong>Resolution:</strong> ${vi.width || '?'}x${vi.height || '?'} • ` +
+                    `<strong>FPS:</strong> ${vi.fps || '?'}`;
+
+                showBanner('success', 'Upload Complete', 'Video uploaded successfully.');
+            },
+            error: function(file, message) {
+                showBanner('danger', 'Upload Failed', typeof message === 'string' ? message : message.error);
+            }
+        });
+
+        function buildPayloadMessage() {
+            const fileEl = document.getElementById('embedFile');
+            const file = (fileEl && fileEl.files && fileEl.files[0]) ? fileEl.files[0] : null;
+            const text = (document.getElementById('embedMessage').value || '').trim();
+
+            if (file) {
+                return new Promise((resolve, reject) => {
+                    const r = new FileReader();
+                    r.onerror = () => reject(new Error('Could not read file'));
+                    r.onload = () => {
+                        const dataUrl = String(r.result || '');
+                        const b64 = dataUrl.split(',')[1] || '';
+                        const marker = '__VIDSTEGA_FILE__';
+                        const msg = marker + ':' + (file.name || 'file') + ':' + (file.type || 'application/octet-stream') + ':' + b64;
+                        resolve({ message: msg, bytes: b64.length, mode: 'file', filename: file.name, mime: file.type });
+                    };
+                    r.readAsDataURL(file);
+                });
+            }
+
+            return Promise.resolve({ message: text, bytes: new Blob([text]).size, mode: 'text' });
+        }
+
+        function updatePayloadInfo() {
+            buildPayloadMessage().then(p => {
+                const el = document.getElementById('payloadInfo');
+                if (!el) return;
+                el.classList.remove('hidden');
+                el.textContent = p.mode === 'file'
+                    ? `📁 File: ${p.filename} (${p.bytes} chars base64)`
+                    : `📝 Text: ${p.bytes} bytes`;
+            }).catch(() => {
+                document.getElementById('payloadInfo')?.classList.add('hidden');
+            });
+        }
+
+        document.getElementById('embedMessage').addEventListener('input', updatePayloadInfo);
+        document.getElementById('embedFile').addEventListener('change', updatePayloadInfo);
+
+        function aiPickFrames() {
+            if (!state.embed.fileId) {
+                showBanner('warning', 'No Video', 'Please upload a video first.');
+                return;
+            }
+
+            const count = parseInt(document.getElementById('embedAiPickCount').value || '10', 10);
+
+            showBanner('info', 'AI Processing', 'Analyzing video frames...');
+
+            axios.post('/api/ai/select-frames', { file_id: state.embed.fileId, num_frames: count })
+                .then(res => {
+                    if (!res.data || !res.data.success) throw new Error('AI selection failed');
+                    const frames = res.data.frames || [];
+                    document.getElementById('embedFrames').value = frames.join(', ');
+                    showBanner('success', 'AI Complete', `Selected ${frames.length} optimal frames.`);
+                })
+                .catch(err => {
+                    const msg = err.response?.data?.error || 'AI frame selection failed.';
+                    showBanner('danger', 'AI Failed', msg);
+                });
+        }
+
+        function calcCapacity() {
+            if (!state.embed.fileId) {
+                showBanner('warning', 'No Video', 'Please upload a video first.');
+                return;
+            }
+
+            const frames = parseCsvInts(document.getElementById('embedFrames').value);
+
+            axios.post('/api/capacity', { file_id: state.embed.fileId, frames: frames })
+                .then(res => {
+                    if (!res.data || !res.data.success) throw new Error('Capacity failed');
+                    const c = res.data.capacity || {};
+                    const el = document.getElementById('capacityInfo');
+                    if (el) {
+                        el.classList.remove('hidden');
+                        el.innerHTML =
+                            `📊 <strong>Usable capacity:</strong> ${c.usable_capacity_bytes || 0} bytes ` +
+                            `(${c.usable_capacity_kb || 0} KB) across ${c.frame_count || 0} frame(s).`;
+                    }
+                })
+                .catch(err => {
+                    const msg = err.response?.data?.error || 'Could not calculate capacity.';
+                    showBanner('danger', 'Calculation Failed', msg);
+                });
+        }
+
+        function startEmbed() {
+            clearBanner();
+            stopPolling('embed');
+            document.getElementById('downloadLink').classList.add('hidden');
+            document.getElementById('embedAiResults').classList.add('hidden');
+
+            if (!state.embed.fileId) {
+                showBanner('warning', 'Missing Video', 'Please upload a video first.');
+                return;
+            }
+
+            const frames = parseCsvInts(document.getElementById('embedFrames').value);
+            if (!frames.length) {
+                showBanner('warning', 'Missing Frames', 'Please provide at least one frame index.');
+                return;
+            }
+
+            const password = document.getElementById('embedPassword').value || '';
+            if (!password) {
+                showBanner('warning', 'Missing Password', 'Password is required.');
+                return;
+            }
+
+            buildPayloadMessage().then(payload => {
+                if (!payload.message) {
+                    showBanner('warning', 'Missing Message', 'Message or file payload is required.');
+                    return;
+                }
+
+                const aiOptions = {
+                    content_aware: !!document.getElementById('embedContentAware').checked,
+                    smart_compression_platform: document.getElementById('embedPlatform').value || '',
+                    generate_caption: !!document.getElementById('embedCaption').checked,
+                    caption_style: 'casual',
+                    detect_suspicious: !!document.getElementById('embedDetect').checked
+                };
+
+                setProgress('embed', 30, 'Starting embed task...');
+
+                return axios.post('/api/embed', {
+                    file_id: state.embed.fileId,
+                    message: payload.message,
+                    password: password,
+                    frames: frames,
+                    encryption_strength: document.getElementById('embedKeySize').value,
+                    cipher_mode: document.getElementById('embedCipherMode').value,
+                    ai_options: aiOptions
+                });
+            })
+            .then(res => {
+                if (!res.data || !res.data.success) throw new Error('Embed failed');
+
+                if (res.data.mode === 'sync' && res.data.result) {
+                    handleEmbedSuccess(res.data.result);
+                    if (res.data.warning) showBanner('info', 'Notice', res.data.warning);
+                    return;
+                }
+
+                const taskId = res.data.task_id;
+                if (!taskId) throw new Error('Missing task_id');
+                pollTask('embed', taskId, handleEmbedSuccess);
+            })
+            .catch(err => {
+                const msg = err.response?.data?.error || err.message || 'Embed failed';
+                showBanner('danger', 'Embedding Failed', msg);
+            });
+        }
+
+        function handleEmbedSuccess(result) {
+            setProgress('embed', 100, 'Complete.');
+            showBanner('success', 'Embedding Complete!', 'Your message has been hidden in the video.');
+
+            const outputId = result.output_file_id;
+            if (outputId) {
+                const a = document.getElementById('downloadLink');
+                a.href = '/api/download/' + outputId;
+                a.classList.remove('hidden');
+            }
+
+            const ai = result.ai || {};
+            const lines = [];
+            if (ai.smart_compression_platform) lines.push(`📱 Platform: ${ai.smart_compression_platform}`);
+            lines.push(`🎨 Mode: ${ai.channel_mode || 'rgb'}, Bit: ${ai.bit_position || 0}`);
+            if (ai.caption) lines.push(`💬 Caption: ${ai.caption}`);
+            if (ai.suspicion_before?.suspicion_score != null) {
+                lines.push(`⚠️ Before: ${ai.suspicion_before.suspicion_score} (${ai.suspicion_before.risk_level})`);
+            }
+            if (ai.suspicion_after?.suspicion_score != null) {
+                lines.push(`✅ After: ${ai.suspicion_after.suspicion_score} (${ai.suspicion_after.risk_level})`);
+            }
+
+            const el = document.getElementById('embedAiResults');
+            if (el && lines.length) {
+                el.classList.remove('hidden');
+                el.innerHTML = lines.join('<br>');
+            }
+        }
+
+        function startExtract() {
+            clearBanner();
+            stopPolling('extract');
+            document.getElementById('extractOutput').value = '';
+            document.getElementById('extractedFileLink').classList.add('hidden');
+            document.getElementById('extractAiResults').classList.add('hidden');
+
+            if (!state.extract.fileId) {
+                showBanner('warning', 'Missing Video', 'Please upload a video first.');
+                return;
+            }
+
+            const password = document.getElementById('extractPassword').value || '';
+            if (!password) {
+                showBanner('warning', 'Missing Password', 'Password is required.');
+                return;
+            }
+
+            const startFrame = parseInt(document.getElementById('extractStart').value || '0', 10);
+            const endFrame = parseInt(document.getElementById('extractEnd').value || '1', 10);
+            if (!Number.isFinite(startFrame) || startFrame < 0) {
+                showBanner('warning', 'Invalid Frame', 'Invalid start frame.');
+                return;
+            }
+            if (!Number.isFinite(endFrame) || endFrame <= startFrame) {
+                showBanner('warning', 'Invalid Range', 'End frame must be greater than start frame.');
+                return;
+            }
+
+            const aiOptions = {
+                content_aware: !!document.getElementById('extractContentAware').checked,
+                smart_compression_platform: document.getElementById('extractPlatform').value || '',
+                detect_suspicious: !!document.getElementById('extractDetect').checked
+            };
+
+            setProgress('extract', 30, 'Starting extract task...');
+
+            axios.post('/api/extract', {
+                file_id: state.extract.fileId,
+                password: password,
+                start_frame: startFrame,
+                end_frame: endFrame,
+                encryption_strength: document.getElementById('extractKeySize').value,
+                cipher_mode: document.getElementById('extractCipherMode').value,
+                ai_options: aiOptions
+            })
+            .then(res => {
+                if (!res.data || !res.data.success) throw new Error('Extract failed');
+
+                if (res.data.mode === 'sync' && res.data.result) {
+                    handleExtractSuccess(res.data.result);
+                    if (res.data.warning) showBanner('info', 'Notice', res.data.warning);
+                    return;
+                }
+
+                const taskId = res.data.task_id;
+                if (!taskId) throw new Error('Missing task_id');
+                pollTask('extract', taskId, handleExtractSuccess);
+            })
+            .catch(err => {
+                const msg = err.response?.data?.error || err.message || 'Extract failed';
+                showBanner('danger', 'Extraction Failed', msg);
+            });
+        }
+
+        function handleExtractSuccess(result) {
+            setProgress('extract', 100, 'Complete.');
+            showBanner('success', 'Extraction Complete!', 'Your hidden message has been revealed.');
+
+            const msg = result?.message ? String(result.message) : '';
+            document.getElementById('extractOutput').value = msg;
+
+            const marker = '__VIDSTEGA_FILE__:';
+            if (msg.startsWith(marker)) {
+                try {
+                    const parts = msg.split(':');
+                    const filename = parts[1] || 'file';
+                    const mime = parts[2] || 'application/octet-stream';
+                    const b64 = parts.slice(3).join(':');
+                    const href = 'data:' + mime + ';base64,' + b64;
+
+                    const a = document.getElementById('extractedFileLink');
+                    a.href = href;
+                    a.download = filename;
+                    a.classList.remove('hidden');
+                } catch (e) {
+                    // fall back to showing text
+                }
+            }
+
+            const ai = result.ai || {};
+            const lines = [];
+            if (ai.smart_compression_platform) lines.push(`📱 Platform: ${ai.smart_compression_platform}`);
+            lines.push(`🎨 Mode: ${ai.channel_mode || 'rgb'}, Bit: ${ai.bit_position || 0}`);
+            if (ai.suspicion?.suspicion_score != null) {
+                lines.push(`⚠️ Suspicion: ${ai.suspicion.suspicion_score} (${ai.suspicion.risk_level})`);
+            }
+
+            const el = document.getElementById('extractAiResults');
+            if (el && lines.length) {
+                el.classList.remove('hidden');
+                el.innerHTML = lines.join('<br>');
+            }
+        }
+
+        function pollTask(which, taskId, onSuccess) {
+            stopPolling(which);
+            setProgress(which, 35, 'Queued...');
+
+            state[which].taskTimer = setInterval(() => {
+                axios.get('/api/task/' + taskId)
+                    .then(res => {
+                        const d = res.data || {};
+                        const status = d.status || 'PENDING';
+                        const progress = d.progress != null ? d.progress : 0;
+                        const step = d.current_step || status;
+                        setProgress(which, Math.max(35, Math.min(99, progress)), step);
+
+                        if (status === 'SUCCESS') {
+                            stopPolling(which);
+                            const result = d.result;
+                            if (!result || !result.success) {
+                                showBanner('danger', 'Task Failed', result?.error || 'Task failed.');
+                                return;
+                            }
+                            onSuccess(result);
+                        }
+                        if (status === 'FAILURE') {
+                            stopPolling(which);
+                            showBanner('danger', 'Task Failed', d.error || 'Task failed.');
+                        }
+                    })
+                    .catch(() => {
+                        // keep polling
+                    });
+            }, 1200);
+        }
+
+        // Initialize
+        loadConfig();
+        updatePayloadInfo();
+    </script>
+</body>
+</html>

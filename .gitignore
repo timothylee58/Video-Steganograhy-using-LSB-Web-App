@@ -1,0 +1,28 @@
+# Virtual environment
+venv/
+env/
+
+# Uploaded files
+uploads/
+
+# Demo videos (generated)
+demo_videos/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Windows artifacts
+nul
+
+# Thesis/Manuscript documents
+/Manuscript - Video Steganography Using LSB.docx
+/Thesis- Video Steganography.docx
+
+# IDE
+.vscode/
+.idea/
+
+# Environment variables
+.env
