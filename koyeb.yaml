@@ -1,0 +1,39 @@
+name: vidstega
+services:
+  - name: web
+    git:
+      repository: github.com/timothylee58/Video-Steganograhy-using-LSB-Web-App
+      branch: master
+      buildpack:
+        builder: dockerfile
+        dockerfile: Dockerfile
+    ports:
+      - port: 8000
+        protocol: http
+    env:
+      - key: FLASK_ENV
+        value: production
+      - key: PORT
+        value: "8000"
+      # Threading is better than eventlet on Koyeb's 0.1 vCPU free tier
+      - key: SOCKETIO_ASYNC_MODE
+        value: threading
+      # Set a strong value in the Koyeb dashboard (Secrets tab)
+      - key: SECRET_KEY
+        value: "change-me-in-koyeb-dashboard"
+      # No Redis on free tier — app falls back to synchronous processing automatically
+    checks:
+      - path: /health
+        port: 8000
+        protocol: http
+        grace_period: 60
+        interval: 30
+        restart_limit: 3
+        timeout: 10
+        unhealthy_threshold: 3
+        healthy_threshold: 1
+    scaling:
+      min: 1
+      max: 1
+    regions:
+      - was
