@@ -25,7 +25,7 @@ COPY . .
 # Create required directories
 RUN mkdir -p uploads outputs static
 
-# Render uses the PORT environment variable
-EXPOSE ${PORT:-10000}
+# PORT is injected by the platform (Railway, Render, etc.)
+EXPOSE ${PORT:-8000}
 
-CMD gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:${PORT:-10000} --timeout 300 run:app
+CMD gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:${PORT:-8000} --timeout 300 run:app
