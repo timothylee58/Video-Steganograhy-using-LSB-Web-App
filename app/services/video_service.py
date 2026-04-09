@@ -205,17 +205,19 @@ class VideoService:
             fps = cap.get(cv2.CAP_PROP_FPS)
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            # Ensure output has .mp4 extension
-            if not output_path.lower().endswith('.mp4'):
-                output_path += '.mp4'
+            # Use AVI container with FFV1 lossless codec to preserve LSB data
+            if output_path.lower().endswith('.mp4'):
+                output_path = output_path[:-4] + '.avi'
+            elif not output_path.lower().endswith('.avi'):
+                output_path += '.avi'
             
-            # Create video writer with H.264 codec
-            fourcc = cv2.VideoWriter_fourcc(*'avc1')
+            # FFV1 is a lossless codec that preserves pixel values exactly
+            fourcc = cv2.VideoWriter_fourcc(*'FFV1')
             out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
             
             if not out.isOpened():
-                # Fallback to mp4v codec
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                # Fallback to HuffYUV lossless codec
+                fourcc = cv2.VideoWriter_fourcc(*'HFYU')
                 out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
             
             # Write frames
