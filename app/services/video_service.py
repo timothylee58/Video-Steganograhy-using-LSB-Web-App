@@ -42,6 +42,7 @@ class VideoService:
         if not cap.isOpened():
             raise ValueError("Could not open video file")
         
+        out = None
         try:
             # Extract metadata
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -205,44 +206,41 @@ class VideoService:
             fps = cap.get(cv2.CAP_PROP_FPS)
             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            # Ensure output has .mp4 extension
-            if not output_path.lower().endswith('.mp4'):
-                output_path += '.mp4'
-            
-            # Create video writer with H.264 codec
-            fourcc = cv2.VideoWriter_fourcc(*'avc1')
-            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-            
-            if not out.isOpened():
-                # Fallback to mp4v codec
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+            # LSB steganography requires lossless output; lossy MP4 codecs corrupt payload bits.
+            output_path = os.path.splitext(output_path)[0] + '.avi'
+
+            for codec in ('FFV1', 'HFYU', 'DIB '):
+                fourcc = cv2.VideoWriter_fourcc(*codec)
+                candidate = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+                if candidate.isOpened():
+                    out = candidate
+                    break
+                candidate.release()
+
+            if out is None:
+                raise ValueError("Could not create a lossless video writer")
             
             # Write frames
             for frame_idx in range(total_frames):
+                ret, frame = cap.read()
+                if not ret:
+                    break
+
                 if frame_idx in frames:
-                    # Use modified frame
                     out.write(frames[frame_idx])
                 else:
-                    # Read and write original frame
-                    ret, frame = cap.read()
-                    if ret:
-                        out.write(frame)
+                    out.write(frame)
                 
                 if progress_callback:
                     progress = ((frame_idx + 1) / total_frames) * 100
                     progress_callback(progress, f"Writing frame {frame_idx + 1}/{total_frames}")
             
-            out.release()
-            
         finally:
+            if out is not None:
+                out.release()
             cap.release()
-        
-        # Handle audio (using moviepy if available)
-        try:
-            cls._copy_audio(source_video_path, output_path)
-        except Exception as e:
-            print(f"Warning: Could not copy audio: {e}")
+
+        # Do not use MoviePy audio copy here: it re-encodes video frames and destroys LSB payloads.
         
         return output_path
     
