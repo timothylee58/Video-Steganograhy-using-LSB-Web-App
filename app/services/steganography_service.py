@@ -110,13 +110,11 @@ class SteganographyService:
 
         work_frame = frame.copy()
 
-        # If luma-only embedding, convert to YCrCb and operate on Y channel.
+        # Use a stable stored channel for luma-style embedding. BGR<->YCrCb
+        # round-trips are not bit-exact and corrupt LSB payloads.
         if channel_mode == 'luma':
-            import cv2
-            ycrcb = cv2.cvtColor(work_frame, cv2.COLOR_BGR2YCrCb)
-            plane = ycrcb[:, :, 0]
+            plane = work_frame[:, :, 1]
         else:
-            ycrcb = None
             plane = None
 
         bits_embedded = 0
@@ -148,9 +146,6 @@ class SteganographyService:
                             try:
                                 bit = next(bit_iter)
                             except StopIteration:
-                                if ycrcb is not None:
-                                    ycrcb[:, :, 0] = plane
-                                    work_frame = cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2BGR)
                                 return work_frame.astype(np.uint8), bits_embedded
                             plane[y, x] = set_bit(int(plane[y, x]), bit)
                             bits_embedded += 1
@@ -186,9 +181,7 @@ class SteganographyService:
                 work_frame = flat.reshape(work_frame.shape)
 
         if channel_mode == 'luma':
-            import cv2
-            ycrcb[:, :, 0] = plane
-            work_frame = cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2BGR)
+            work_frame[:, :, 1] = plane
 
         return work_frame.astype(np.uint8), bits_embedded
     
@@ -215,9 +208,7 @@ class SteganographyService:
         extracted_bits: List[int] = []
 
         if channel_mode == 'luma':
-            import cv2
-            ycrcb = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
-            plane = ycrcb[:, :, 0]
+            plane = frame[:, :, 1]
         else:
             plane = None
 
@@ -394,9 +385,7 @@ class SteganographyService:
                 regions = regions_by_frame.get(frame_idx)
             # Extract all bits from this frame (for the selected mode)
             if channel_mode == 'luma':
-                import cv2
-                ycrcb = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
-                plane_size = ycrcb[:, :, 0].size
+                plane_size = frame[:, :, 1].size
                 num_bits = plane_size
             else:
                 num_bits = frame.size

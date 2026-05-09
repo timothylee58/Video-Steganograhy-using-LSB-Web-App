@@ -199,6 +199,8 @@ class VideoService:
         if not cap.isOpened():
             raise ValueError("Could not open source video")
         
+        out = None
+
         try:
             # Get video properties
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
