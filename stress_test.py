@@ -6,6 +6,7 @@ Tests performance across different resolutions, encryption strengths, and video 
 import os
 import time
 import json
+import traceback
 import psutil
 import numpy as np
 import cv2
