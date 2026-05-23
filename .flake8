@@ -1,0 +1,10 @@
+[flake8]
+exclude =
+    .git,
+    __pycache__
+per-file-ignores =
+    # Standalone demo scripts with intentionally incomplete imports
+    Extract*.py:F821
+    Flask*.py:F821
+    VidStega*.py:F821
+max-line-length = 127
