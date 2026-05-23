@@ -22,10 +22,9 @@ RUN grep -v '^opencv-python>=' requirements.txt > requirements-prod.txt && \
 # Copy application code
 COPY . .
 
-# Create required directories
+# Create required directories (volumes will be mounted over uploads/outputs at runtime)
 RUN mkdir -p uploads outputs static
 
-# Render uses the PORT environment variable
-EXPOSE ${PORT:-10000}
+EXPOSE 8080
 
-CMD gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:${PORT:-10000} --timeout 300 run:app
+CMD gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:8080 --timeout 300 run:app

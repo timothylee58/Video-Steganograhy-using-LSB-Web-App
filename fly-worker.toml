@@ -1,0 +1,24 @@
+app = "vidstega-worker"
+primary_region = "sin"
+
+[build]
+
+[env]
+  FLASK_ENV = "production"
+
+[[vm]]
+  memory = "2gb"
+  cpu_kind = "shared"
+  cpus = 2
+
+# No HTTP service — this is a background worker
+# Override CMD at deploy time:
+#   fly deploy --config fly-worker.toml --override-cmd "celery -A celery_worker.celery_app worker --loglevel=info"
+
+[[mounts]]
+  source = "vidstega_data"
+  destination = "/app/uploads"
+
+[[mounts]]
+  source = "vidstega_outputs"
+  destination = "/app/outputs"
