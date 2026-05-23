@@ -1,46 +1,52 @@
-app = "vidstega"
-primary_region = "sin"  # Singapore — change to your nearest region
+# fly.toml app configuration file generated for video-steganograhy-using-lsb-web-app on 2026-05-23T07:50:35Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'video-steganograhy-using-lsb-web-app'
+primary_region = 'sin'
 
 [build]
 
 [env]
-  FLASK_ENV = "production"
-  SOCKETIO_ASYNC_MODE = "eventlet"
-  MAX_UPLOAD_MB = "500"
+  FLASK_ENV = 'production'
+  MAX_UPLOAD_MB = '500'
+  SOCKETIO_ASYNC_MODE = 'eventlet'
+
+[[mounts]]
+  source = 'vidstega_data'
+  destination = '/app/uploads'
+  initial_size = '10gb'
+
+[[mounts]]
+  source = 'vidstega_outputs'
+  destination = '/app/outputs'
+  initial_size = '10gb'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
   [http_service.concurrency]
-    type = "connections"
+    type = 'connections'
     hard_limit = 25
     soft_limit = 20
 
-[[vm]]
-  memory = "1gb"
-  cpu_kind = "shared"
-  cpus = 1
-
-[[mounts]]
-  source = "vidstega_data"
-  destination = "/app/uploads"
-  initial_size = "10gb"
-
-[[mounts]]
-  source = "vidstega_outputs"
-  destination = "/app/outputs"
-  initial_size = "10gb"
-
 [checks]
   [checks.health]
-    grace_period = "30s"
-    interval = "15s"
-    method = "GET"
-    path = "/health"
     port = 8080
-    timeout = "10s"
-    type = "http"
+    type = 'http'
+    interval = '15s'
+    timeout = '10s'
+    grace_period = '30s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  memory = '1gb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 1024
