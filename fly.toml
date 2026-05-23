@@ -7,6 +7,7 @@ primary_region = "sin"  # Singapore — change to your nearest region
   FLASK_ENV = "production"
   SOCKETIO_ASYNC_MODE = "eventlet"
   MAX_UPLOAD_MB = "500"
+  OUTPUT_FOLDER = "/app/uploads/outputs"
 
 [http_service]
   internal_port = 8080
@@ -28,12 +29,7 @@ primary_region = "sin"  # Singapore — change to your nearest region
 [[mounts]]
   source = "vidstega_data"
   destination = "/app/uploads"
-  initial_size = "10gb"
-
-[[mounts]]
-  source = "vidstega_outputs"
-  destination = "/app/outputs"
-  initial_size = "10gb"
+  initial_size = "20gb"
 
 [checks]
   [checks.health]
