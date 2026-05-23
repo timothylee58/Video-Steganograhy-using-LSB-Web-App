@@ -33,7 +33,7 @@ jobs:
         pip install flake8 pytest
         # Use headless OpenCV only (mirrors Dockerfile behaviour)
         grep -v '^opencv-python>=' requirements.txt > requirements-ci.txt
-        pip install -r requirements-ci.txt
+        pip install --ignore-installed -r requirements-ci.txt
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
