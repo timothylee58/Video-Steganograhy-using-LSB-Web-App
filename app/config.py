@@ -13,7 +13,10 @@ class Config:
     # File upload settings
     MAX_CONTENT_LENGTH = 2 * 1024 * 1024 * 1024  # 2GB max upload
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
-    OUTPUT_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'outputs')
+    OUTPUT_FOLDER = os.environ.get(
+        'OUTPUT_FOLDER',
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'outputs')
+    )
     ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
     
     # Celery configuration

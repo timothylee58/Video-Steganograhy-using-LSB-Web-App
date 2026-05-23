@@ -23,7 +23,7 @@ RUN grep -v '^opencv-python>=' requirements.txt > requirements-prod.txt && \
 COPY . .
 
 # Create required directories (volumes will be mounted over uploads/outputs at runtime)
-RUN mkdir -p uploads outputs static
+RUN mkdir -p uploads uploads/outputs outputs static
 
 EXPOSE 8080
 
