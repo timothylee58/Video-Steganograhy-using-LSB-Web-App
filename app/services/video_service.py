@@ -366,32 +366,41 @@ class VideoService:
     
     @classmethod
     def _copy_audio(cls, source_path: str, dest_path: str):
-        """Copy audio from source video to destination."""
+        """Copy audio from source video to destination using ffmpeg stream copy."""
+        import subprocess
+
+        # Use ffmpeg to mux audio without re-encoding the video stream
+        # -c:v copy preserves the lossless FFV1 video exactly
+        # -c:a pcm_s16le uses uncompressed audio suitable for AVI container
+        base, ext = os.path.splitext(dest_path)
+        temp_path = base + '_with_audio' + ext
+
         try:
-            from moviepy.editor import VideoFileClip
-            
-            source_clip = VideoFileClip(source_path)
-            
-            if source_clip.audio is not None:
-                dest_clip = VideoFileClip(dest_path)
-                final_clip = dest_clip.set_audio(source_clip.audio)
-                
-                # Create temp path
-                temp_path = dest_path.replace('.mp4', '_with_audio.mp4')
-                final_clip.write_videofile(temp_path, codec='libx264', audio_codec='aac',
-                                          verbose=False, logger=None)
-                
-                # Replace original with audio version
-                dest_clip.close()
-                source_clip.close()
-                final_clip.close()
-                
+            result = subprocess.run(
+                [
+                    'ffmpeg', '-y',
+                    '-i', dest_path,       # lossless stego video
+                    '-i', source_path,      # original video with audio
+                    '-c:v', 'copy',         # do NOT re-encode video
+                    '-c:a', 'pcm_s16le',    # uncompressed audio for AVI
+                    '-map', '0:v:0',        # video from stego file
+                    '-map', '1:a:0',        # audio from source file
+                    temp_path
+                ],
+                capture_output=True, text=True, timeout=120
+            )
+
+            if result.returncode == 0 and os.path.exists(temp_path):
                 os.replace(temp_path, dest_path)
             else:
-                source_clip.close()
-                
-        except ImportError:
-            pass  # moviepy not available
+                # Source may have no audio track; clean up temp file
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+        except FileNotFoundError:
+            pass  # ffmpeg not installed
+        except subprocess.TimeoutExpired:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
     
     @classmethod
     def validate_frame_range(cls, video_path: str, 
