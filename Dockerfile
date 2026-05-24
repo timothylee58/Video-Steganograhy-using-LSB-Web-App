@@ -27,4 +27,4 @@ RUN mkdir -p uploads uploads/outputs outputs static
 
 EXPOSE 8080
 
-CMD gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:8080 --timeout 300 run:app
+CMD gunicorn -w 1 --threads 4 --bind 0.0.0.0:8080 --timeout 300 run:app
