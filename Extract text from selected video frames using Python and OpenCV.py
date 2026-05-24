@@ -1,6 +1,17 @@
 from Crypto.Cipher import AES
-from Crypto.Util.Padding import unpad
+from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad, unpad
 import base64
+
+
+def encrypt_aes(data, key):
+    """AES-256-CBC encrypt; output matches decrypt_aes format (base64(iv||ciphertext))."""
+    iv = get_random_bytes(16)
+    cipher = AES.new(key, AES.MODE_CBC, iv)
+    padded = pad(data.encode("utf-8"), AES.block_size)
+    encrypted_bytes = iv + cipher.encrypt(padded)
+    return base64.b64encode(encrypted_bytes).decode("utf-8")
+
 
 def decrypt_aes(encrypted_base64_data, key):
     # Decode the base64 encoded data

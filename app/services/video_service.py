@@ -5,7 +5,7 @@ Supports resolutions up to 1440p
 
 import cv2
 import os
-from typing import Dict, List, Optional, Tuple, Callable
+from typing import Callable, Dict, List, Optional, Tuple
 import numpy as np
 
 
@@ -177,6 +177,59 @@ class VideoService:
         return frames
     
     @classmethod
+    def _read_nth_frame_bgr(cls, path: str, index: int) -> Tuple[bool, Optional[np.ndarray]]:
+        """Read frame `index` by sequential decode (seeks are unreliable on some AVI backends)."""
+        cap = cv2.VideoCapture(path)
+        if not cap.isOpened():
+            return False, None
+        try:
+            frame = None
+            for _ in range(index + 1):
+                ok, frame = cap.read()
+                if not ok:
+                    return False, None
+            return True, frame
+        finally:
+            cap.release()
+
+    @classmethod
+    def _verify_lossless_sample(cls, output_path: str, source_path: str,
+                                modified: Dict[int, np.ndarray], total_frames: int) -> bool:
+        """Confirm one frame survived encode/decode bit-identically (lossless pipeline)."""
+        if total_frames <= 0 or not os.path.isfile(output_path):
+            return False
+        if os.path.getsize(output_path) < 64:
+            return False
+        pick = next((i for i in range(total_frames) if i not in modified), None)
+        if pick is None:
+            pick = 0
+            ok_e, expected = True, modified[0]
+        else:
+            ok_e, expected = cls._read_nth_frame_bgr(source_path, pick)
+        if not ok_e or expected is None:
+            return False
+        ok_a, actual = cls._read_nth_frame_bgr(output_path, pick)
+        return (
+            ok_a and actual is not None
+            and expected.shape == actual.shape
+            and np.array_equal(actual, expected)
+        )
+
+    @classmethod
+    def _verify_all_frames_match(cls, output_path: str, expected_frames: List[np.ndarray]) -> bool:
+        cap = cv2.VideoCapture(output_path)
+        if not cap.isOpened():
+            return False
+        try:
+            for exp in expected_frames:
+                ok, fr = cap.read()
+                if not ok or fr.shape != exp.shape or not np.array_equal(fr, exp):
+                    return False
+            return True
+        finally:
+            cap.release()
+
+    @classmethod
     def write_video(cls, output_path: str,
                    frames: Dict[int, np.ndarray],
                    source_video_path: str,
@@ -194,58 +247,121 @@ class VideoService:
             Path to output video
         """
         cap = cv2.VideoCapture(source_video_path)
-        
+
         if not cap.isOpened():
             raise ValueError("Could not open source video")
-        
+
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = float(cap.get(cv2.CAP_PROP_FPS))
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        # Windows / synthetic clips often report FPS 0; VideoWriter then misbehaves or picks wrong codec path.
+        if not fps or fps < 1e-6:
+            fps = 30.0
+
+        dest_path = os.path.splitext(output_path)[0] + '.avi'
+
+        out = None
         try:
-            # Get video properties
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            fps = cap.get(cv2.CAP_PROP_FPS)
-            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            
-            # Use AVI container with FFV1 lossless codec to preserve LSB data
-            if output_path.lower().endswith('.mp4'):
-                output_path = output_path[:-4] + '.avi'
-            elif not output_path.lower().endswith('.avi'):
-                output_path += '.avi'
-            
-            # FFV1 is a lossless codec that preserves pixel values exactly
-            fourcc = cv2.VideoWriter_fourcc(*'FFV1')
-            out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-            
-            if not out.isOpened():
-                # Fallback to HuffYUV lossless codec
-                fourcc = cv2.VideoWriter_fourcc(*'HFYU')
-                out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-            
-            # Write frames
-            for frame_idx in range(total_frames):
-                if frame_idx in frames:
-                    # Use modified frame
-                    out.write(frames[frame_idx])
-                else:
-                    # Read and write original frame
-                    ret, frame = cap.read()
-                    if ret:
-                        out.write(frame)
-                
-                if progress_callback:
-                    progress = ((frame_idx + 1) / total_frames) * 100
-                    progress_callback(progress, f"Writing frame {frame_idx + 1}/{total_frames}")
-            
-            out.release()
-            
+            # LSB steganography requires lossless output; lossy MP4 codecs corrupt payload bits.
+            for codec in ('FFV1', 'HFYU', 'DIB '):
+                fourcc = cv2.VideoWriter_fourcc(*codec)
+                candidate = cv2.VideoWriter(dest_path, fourcc, fps, (width, height))
+                if candidate.isOpened():
+                    out = candidate
+                    break
+                candidate.release()
+
+            if out is not None:
+                try:
+                    for frame_idx in range(total_frames):
+                        ret, frame = cap.read()
+                        if not ret:
+                            break
+                        out.write(frames[frame_idx] if frame_idx in frames else frame)
+                        if progress_callback:
+                            progress = ((frame_idx + 1) / total_frames) * 100
+                            progress_callback(progress, f"Writing frame {frame_idx + 1}/{total_frames}")
+                finally:
+                    out.release()
+                # Windows builds sometimes report an opened writer but emit a broken stream; verify.
+                if cls._verify_lossless_sample(dest_path, source_video_path, frames, total_frames):
+                    return dest_path
+                try:
+                    os.remove(dest_path)
+                except OSError:
+                    pass
         finally:
             cap.release()
-        
-        # Handle audio (using moviepy if available)
+
+        # OpenCV wheel often lacks FFV1/HFYU on Windows; reader path may still probe OpenH264 for MP4 elsewhere.
+        cap2 = cv2.VideoCapture(source_video_path)
+        composed: List[np.ndarray] = []
         try:
-            cls._copy_audio(source_video_path, output_path)
+            if not cap2.isOpened():
+                raise ValueError("Could not reopen source video for lossless fallback encode")
+            for frame_idx in range(total_frames):
+                ret, frame = cap2.read()
+                if not ret:
+                    break
+                composed.append(
+                    frames[frame_idx].copy() if frame_idx in frames else frame.copy()
+                )
+        finally:
+            cap2.release()
+
+        if not composed:
+            raise ValueError("Could not read frames for lossless video fallback")
+
+        try:
+            written = cls._write_lossless_imageio_ffv1(dest_path, composed, fps)
+            if not cls._verify_all_frames_match(written, composed):
+                try:
+                    os.remove(written)
+                except OSError:
+                    pass
+                raise ValueError(
+                    "imageio FFV1 output failed pixel-identical verification with OpenCV decode"
+                )
+            return written
         except Exception as e:
-            print(f"Warning: Could not copy audio: {e}")
-        
+            raise ValueError(
+                "Could not create lossless stego video (OpenCV codecs unavailable or corrupt output, "
+                "and imageio/ffmpeg fallback failed verification). On Windows: pip install -U "
+                "imageio imageio-ffmpeg moviepy, or run under WSL/Linux. "
+                f"Detail: {e}"
+            ) from e
+
+    @classmethod
+    def _write_lossless_imageio_ffv1(cls, output_path: str,
+                                     composed_frames: List[np.ndarray],
+                                     fps: float) -> str:
+        """Fallback lossless writer using imageio + bundled ffmpeg (helps Windows OpenCV builds)."""
+        import imageio.v2 as imageio
+
+        output_path = os.path.splitext(output_path)[0] + '.avi'
+        rgb = [cv2.cvtColor(f, cv2.COLOR_BGR2RGB) for f in composed_frames]
+        try:
+            imageio.mimwrite(
+                output_path,
+                rgb,
+                fps=fps,
+                codec='ffv1',
+                format='FFMPEG',
+            )
+        except Exception:
+            writer = imageio.get_writer(
+                output_path,
+                format='FFMPEG',
+                mode='I',
+                fps=fps,
+                codec='ffv1',
+            )
+            try:
+                for frame in rgb:
+                    writer.append_data(frame)
+            finally:
+                writer.close()
         return output_path
     
     @classmethod
