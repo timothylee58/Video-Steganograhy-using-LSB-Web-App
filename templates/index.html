@@ -318,6 +318,54 @@
             color: white;
             font-size: 0.875rem;
         }
+
+        /* Upload state transition panels (AnimatePresence-like wait mode) */
+        .upload-state-panel-wrap {
+            position: relative;
+            min-height: 3.5rem;
+        }
+
+        .upload-state-panel {
+            border-radius: 0.75rem;
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(15, 23, 42, 0.45);
+            padding: 0.75rem 1rem;
+            font-size: 0.875rem;
+            color: #cbd5e1;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            transform: translateY(8px) scale(0.985);
+            opacity: 0;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .upload-state-panel.show {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        .upload-state-panel.leave {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.985);
+        }
+
+        .upload-state-idle {
+            border-color: rgba(148, 163, 184, 0.25);
+            color: #cbd5e1;
+        }
+
+        .upload-state-uploading {
+            border-color: rgba(59, 130, 246, 0.4);
+            color: #93c5fd;
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .upload-state-success {
+            border-color: rgba(34, 197, 94, 0.4);
+            color: #86efac;
+            background: rgba(34, 197, 94, 0.08);
+        }
     </style>
 
     <script>
@@ -427,6 +475,9 @@
                             <span class="text-sm text-gray-400 block mt-2">MP4, AVI, MOV, MKV, WEBM (Max 2GB)</span>
                         </div>
                     </form>
+                    <div class="mt-3 upload-state-panel-wrap">
+                        <div id="embedUploadStatePanel"></div>
+                    </div>
                     <div id="embedVideoInfo" class="hidden mt-3 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-sm">
                         <div class="font-mono text-green-300"></div>
                     </div>
@@ -602,6 +653,9 @@
                             <span class="text-sm text-gray-400 block mt-2">MP4, AVI, MOV, MKV, WEBM</span>
                         </div>
                     </form>
+                    <div class="mt-3 upload-state-panel-wrap">
+                        <div id="extractUploadStatePanel"></div>
+                    </div>
                     <div id="extractVideoInfo" class="hidden mt-3 p-4 rounded-lg bg-green-500/10 border border-green-500/30 text-sm">
                         <div class="font-mono text-green-300"></div>
                     </div>
@@ -777,6 +831,64 @@
             config: null
         };
 
+        function getUploadStateConfig(uploadState, detailText) {
+            if (uploadState === 'uploading') {
+                return {
+                    key: 'uploading',
+                    klass: 'upload-state-uploading',
+                    icon: '⏳',
+                    text: detailText || 'Uploading video file...'
+                };
+            }
+            if (uploadState === 'success') {
+                return {
+                    key: 'success',
+                    klass: 'upload-state-success',
+                    icon: '✅',
+                    text: detailText || 'Video uploaded successfully.'
+                };
+            }
+            return {
+                key: 'idle',
+                klass: 'upload-state-idle',
+                icon: '🕒',
+                text: detailText || 'Waiting for a video file upload...'
+            };
+        }
+
+        function setUploadMotionState(which, uploadState, detailText) {
+            const mountId = which + 'UploadStatePanel';
+            const mount = document.getElementById(mountId);
+            if (!mount) return;
+
+            const cfg = getUploadStateConfig(uploadState, detailText);
+            const active = mount.querySelector('.upload-state-panel:not(.leave)');
+
+            if (active && active.dataset.key === cfg.key && active.dataset.text === cfg.text) {
+                return;
+            }
+
+            const next = document.createElement('div');
+            next.className = 'upload-state-panel ' + cfg.klass;
+            next.dataset.key = cfg.key;
+            next.dataset.text = cfg.text;
+            next.innerHTML = `<span>${cfg.icon}</span><span>${cfg.text}</span>`;
+
+            // "wait" behavior: exit current panel first, then enter next panel.
+            const enterNext = () => {
+                mount.innerHTML = '';
+                mount.appendChild(next);
+                requestAnimationFrame(() => next.classList.add('show'));
+            };
+
+            if (active) {
+                active.classList.add('leave');
+                setTimeout(enterNext, 240);
+            } else {
+                enterNext();
+            }
+        }
+
         function showBanner(type, title, message) {
             const alert = document.getElementById('statusAlert');
             const icon = document.getElementById('statusIcon');
@@ -872,6 +984,9 @@
             maxFiles: 1,
             acceptedFiles: 'video/*',
             addRemoveLinks: true,
+            sending: function(file) {
+                setUploadMotionState('embed', 'uploading', `Uploading ${file.name || 'video'}...`);
+            },
             success: function(file, response) {
                 state.embed.fileId = response.file_id;
                 state.embed.filename = response.filename;
@@ -886,9 +1001,12 @@
                     `<strong>Resolution:</strong> ${vi.width || '?'}x${vi.height || '?'} • ` +
                     `<strong>FPS:</strong> ${vi.fps || '?'}`;
 
+                setUploadMotionState('embed', 'success', `Ready: ${response.filename || file.name || 'video file'}`);
                 showBanner('success', 'Upload Complete', 'Video uploaded successfully.');
+                setTimeout(() => setUploadMotionState('embed', 'idle'), 1500);
             },
             error: function(file, message) {
+                setUploadMotionState('embed', 'idle', 'Upload failed. Try again with a supported video.');
                 showBanner('danger', 'Upload Failed', typeof message === 'string' ? message : message.error);
             }
         });
@@ -900,6 +1018,9 @@
             maxFiles: 1,
             acceptedFiles: 'video/*',
             addRemoveLinks: true,
+            sending: function(file) {
+                setUploadMotionState('extract', 'uploading', `Uploading ${file.name || 'stego video'}...`);
+            },
             success: function(file, response) {
                 state.extract.fileId = response.file_id;
                 state.extract.filename = response.filename;
@@ -914,9 +1035,12 @@
                     `<strong>Resolution:</strong> ${vi.width || '?'}x${vi.height || '?'} • ` +
                     `<strong>FPS:</strong> ${vi.fps || '?'}`;
 
+                setUploadMotionState('extract', 'success', `Ready: ${response.filename || file.name || 'stego video'}`);
                 showBanner('success', 'Upload Complete', 'Video uploaded successfully.');
+                setTimeout(() => setUploadMotionState('extract', 'idle'), 1500);
             },
             error: function(file, message) {
+                setUploadMotionState('extract', 'idle', 'Upload failed. Try again with a supported stego video.');
                 showBanner('danger', 'Upload Failed', typeof message === 'string' ? message : message.error);
             }
         });
@@ -1248,6 +1372,8 @@
         // Initialize
         loadConfig();
         updatePayloadInfo();
+        setUploadMotionState('embed', 'idle');
+        setUploadMotionState('extract', 'idle');
     </script>
 </body>
 </html>
