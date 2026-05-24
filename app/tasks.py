@@ -142,7 +142,7 @@ def run_embed_pipeline(*,
 
     import uuid
     output_id = str(uuid.uuid4())
-    output_path = os.path.join(output_folder, f"{output_id}_output.mp4")
+    output_path = os.path.join(output_folder, f"{output_id}_output.avi")
     final_path = VideoService.write_video(output_path, result['modified_frames'], video_path, write_progress)
 
     if ai_options and ai_options.get('detect_suspicious'):
