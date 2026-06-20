@@ -36,10 +36,10 @@ class Config:
     # Absolute paths to the upload and output directories, derived relative
     # to this config file so they work regardless of the working directory.
     UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'uploads')
-    OUTPUT_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'outputs')
-
-    # Only these video container formats are accepted to reduce the attack
-    # surface and ensure OpenCV can decode them reliably.
+    OUTPUT_FOLDER = os.environ.get(
+        'OUTPUT_FOLDER',
+        os.path.join(os.path.dirname(os.path.dirname(__file__)), 'outputs')
+    )
     ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov', 'mkv', 'webm'}
 
     # ------------------------------------------------------------------ #

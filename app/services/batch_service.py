@@ -234,7 +234,7 @@ class BatchService:
         # Step 4: Write the modified frames back to a new video file.
         progress_callback(70, "Writing video...")
         output_id = str(uuid.uuid4())
-        output_path = os.path.join(output_folder, f"{output_id}_output.mp4")
+        output_path = os.path.join(output_folder, f"{output_id}_output.avi")
         VideoService.write_video(output_path, result['modified_frames'], job.video_path)
 
         progress_callback(100, "Complete")
