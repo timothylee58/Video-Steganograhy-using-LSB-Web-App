@@ -31,7 +31,6 @@ ffprobe/ffmpeg dependency:
 import os
 import json
 import subprocess
-from fractions import Fraction
 from typing import Dict, Optional, List
 from datetime import datetime
 
@@ -72,63 +71,64 @@ class MetadataService:
         }
 
         try:
-            # Run ffprobe in JSON output mode to get structured metadata.
-            # -show_format returns container-level tags and duration/bitrate.
-            # -show_streams returns per-stream codec details.
-            result = subprocess.run([
-                'ffprobe', '-v', 'quiet',
-                '-print_format', 'json',
-                '-show_format', '-show_streams',
-                video_path
-            ], capture_output=True, text=True, timeout=30)
+            from pymediainfo import MediaInfo
 
-            if result.returncode == 0:
-                probe_data = json.loads(result.stdout)
+            media = MediaInfo.parse(video_path)
 
-                # Extract format-level metadata (container tags + technical info).
-                if 'format' in probe_data:
-                    fmt = probe_data['format']
-                    metadata['video_metadata'] = fmt.get('tags', {})
+            for track in media.tracks:
+                if track.track_type == 'General':
+                    # Map pymediainfo field names to ffmpeg metadata key names so
+                    # apply_metadata() can pass them directly to ffmpeg -metadata.
+                    metadata['video_metadata'] = {
+                        k: v for k, v in {
+                            'title':       track.title,
+                            'artist':      track.performer,
+                            'album':       track.album,
+                            'date':        track.recorded_date,
+                            'comment':     track.comment,
+                            'genre':       track.genre,
+                            'copyright':   track.copyright,
+                            'description': track.movie_name,
+                            'encoder':     track.encoded_by,
+                            'language':    track.language,
+                        }.items() if v is not None
+                    }
                     metadata['technical_info'] = {
-                        'format_name': fmt.get('format_name'),
-                        'duration': float(fmt.get('duration', 0)),
-                        'size': int(fmt.get('size', 0)),
-                        'bit_rate': int(fmt.get('bit_rate', 0))
+                        'format_name': track.format,
+                        'duration':    float(track.duration or 0) / 1000,  # ms -> s
+                        'size':        int(track.file_size or 0),
+                        'bit_rate':    int(track.overall_bit_rate or 0),
                     }
 
-                # Extract stream-level details (video codec, audio codec, etc.).
-                if 'streams' in probe_data:
-                    for stream in probe_data['streams']:
-                        if stream.get('codec_type') == 'video':
-                            # r_frame_rate is a fraction string like '30000/1001'; use
-                            # Fraction to parse it safely instead of eval().
-                            try:
-                                fps_val = float(Fraction(stream.get('r_frame_rate', '0/1')))
-                            except (ValueError, ZeroDivisionError):
-                                fps_val = 0.0
-                            metadata['technical_info']['video'] = {
-                                'codec': stream.get('codec_name'),
-                                'width': stream.get('width'),
-                                'height': stream.get('height'),
-                                'fps': fps_val,
-                                'pixel_format': stream.get('pix_fmt')
-                            }
-                        elif stream.get('codec_type') == 'audio':
-                            metadata['technical_info']['audio'] = {
-                                'codec': stream.get('codec_name'),
-                                'sample_rate': stream.get('sample_rate'),
-                                'channels': stream.get('channels')
-                            }
+                elif track.track_type == 'Video':
+                    try:
+                        fps_val = float(track.frame_rate or 0)
+                    except (ValueError, TypeError):
+                        fps_val = 0.0
+                    metadata['technical_info']['video'] = {
+                        'codec':        track.codec_id or track.format,
+                        'width':        track.width,
+                        'height':       track.height,
+                        'fps':          fps_val,
+                        'pixel_format': track.chroma_subsampling,
+                    }
 
-        except (subprocess.SubprocessError, FileNotFoundError):
-            # ffprobe not available; fall back to OpenCV for basic info.
+                elif track.track_type == 'Audio':
+                    metadata['technical_info']['audio'] = {
+                        'codec':       track.codec_id or track.format,
+                        'sample_rate': track.sampling_rate,
+                        'channels':    track.channel_s,
+                    }
+
+        except Exception:
+            # pymediainfo not available or parse failed; fall back to OpenCV for basic info.
             import cv2
             cap = cv2.VideoCapture(video_path)
             if cap.isOpened():
                 metadata['technical_info'] = {
-                    'width': int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                    'height': int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
-                    'fps': cap.get(cv2.CAP_PROP_FPS),
+                    'width':       int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),
+                    'height':      int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+                    'fps':         cap.get(cv2.CAP_PROP_FPS),
                     'frame_count': int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 }
                 cap.release()

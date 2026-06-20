@@ -22,7 +22,7 @@ basic LSB engine:
    cover video or embedding configuration.
 
 3. AI caption generation (generate_innocent_caption)
-   Uses the Claude or OpenAI vision API to generate a plausible, innocent-
+   Uses the Google Gemini Flash vision API to generate a plausible, innocent-
    looking description for the output video.  Falls back to hand-crafted
    captions if no API key is configured.
 
@@ -49,9 +49,8 @@ import cv2
 class AIService:
     """AI-powered enhancements for video steganography."""
 
-    # External API endpoints used for AI caption generation.
-    ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
-    OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+    # Gemini REST endpoint; model and API key are substituted at call time.
+    GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 
     # ------------------------------------------------------------------ #
     # Platform-specific embedding configurations
@@ -93,10 +92,8 @@ class AIService:
     }
 
     def __init__(self):
-        # Load API keys from environment variables at instance creation.
-        # Claude is preferred over OpenAI; both fall back to local generation.
-        self.anthropic_key = os.environ.get('ANTHROPIC_API_KEY')
-        self.openai_key = os.environ.get('OPENAI_API_KEY')
+        # Gemini API key; falls back to local caption generation if not set.
+        self.gemini_key = os.environ.get('GEMINI_API_KEY')
 
     # ================== Content-Aware Embedding ==================
 
@@ -261,100 +258,48 @@ class AIService:
 
         prompt = style_prompts.get(style, style_prompts['casual'])
 
-        # Try Claude first, then OpenAI, then local fallback.
+        # Try Gemini first, then local fallback.
         try:
-            if self.anthropic_key:
-                return await self._generate_with_claude(frame_b64, prompt)
-            if self.openai_key:
-                return await self._generate_with_openai(frame_b64, prompt)
+            if self.gemini_key:
+                return await self._generate_with_gemini(frame_b64, prompt)
         except Exception:
             pass
 
         return self._generate_fallback_caption(style)
 
-    async def _generate_with_claude(self, image_b64: str, prompt: str) -> str:
-        """Generate caption using the Anthropic Claude vision API.
+    async def _generate_with_gemini(self, image_b64: str, prompt: str) -> str:
+        """Generate caption using the Google Gemini Flash vision API.
 
-        Sends the base64 image and prompt to the Messages API using the
-        claude-3-sonnet model.  Falls back to local generation on any error.
+        Uses the REST API directly with an API key — no SDK required.
+        Falls back to local generation on any error or non-200 response.
         """
+        url = f"{self.GEMINI_API_URL}?key={self.gemini_key}"
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                self.ANTHROPIC_API_URL,
-                headers={
-                    "x-api-key": self.anthropic_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json"
-                },
+                url,
+                headers={"Content-Type": "application/json"},
                 json={
-                    "model": "claude-3-sonnet-20240229",
-                    "max_tokens": 150,
-                    "messages": [{
-                        "role": "user",
-                        "content": [
+                    "contents": [{
+                        "parts": [
                             {
-                                "type": "image",
-                                "source": {
-                                    "type": "base64",
-                                    "media_type": "image/jpeg",
+                                "inline_data": {
+                                    "mime_type": "image/jpeg",
                                     "data": image_b64
                                 }
                             },
-                            {
-                                "type": "text",
-                                "text": prompt
-                            }
-                        ]
-                    }]
-                },
-                timeout=30.0
-            )
-
-            if response.status_code == 200:
-                data = response.json()
-                return data['content'][0]['text']
-            else:
-                return self._generate_fallback_caption('casual')
-
-    async def _generate_with_openai(self, image_b64: str, prompt: str) -> str:
-        """Generate caption using the OpenAI GPT-4 Vision API.
-
-        Falls back to local generation on any error or non-200 response.
-        """
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                self.OPENAI_API_URL,
-                headers={
-                    "Authorization": f"Bearer {self.openai_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": "gpt-4-vision-preview",
-                    "messages": [{
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": prompt
-                            },
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{image_b64}"
-                                }
-                            }
+                            {"text": prompt}
                         ]
                     }],
-                    "max_tokens": 150
+                    "generationConfig": {"maxOutputTokens": 150}
                 },
                 timeout=30.0
             )
 
-            if response.status_code == 200:
-                data = response.json()
-                return data['choices'][0]['message']['content']
-            else:
-                return self._generate_fallback_caption('casual')
+        if response.status_code == 200:
+            data = response.json()
+            return data['candidates'][0]['content']['parts'][0]['text']
+        return self._generate_fallback_caption('casual')
 
     def _generate_fallback_caption(self, style: str) -> str:
         """Generate a fallback caption without AI when no API key is available.
