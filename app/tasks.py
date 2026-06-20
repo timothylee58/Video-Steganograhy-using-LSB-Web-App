@@ -93,8 +93,8 @@ def _build_ai_embed_params(ai_options: Optional[Dict]) -> Tuple[Optional[Dict], 
             channel_mode = 'rgb'
 
     # Allow the caller to override platform defaults explicitly.
-    if ai_options.get('use_second_lsb') is True:
-        bit_position = 1
+    if 'use_second_lsb' in ai_options:
+        bit_position = 1 if ai_options.get('use_second_lsb') else 0
     if ai_options.get('prefer_luma') is True:
         channel_mode = 'luma'
     if ai_options.get('prefer_luma') is False and 'prefer_luma' in ai_options:
@@ -313,8 +313,8 @@ def run_extract_pipeline(*,
             channel_mode = 'luma' if cfg.get('prefer_luma') else 'rgb'
 
         # Explicit overrides take precedence over platform defaults.
-        if ai_options.get('use_second_lsb') is True:
-            bit_position = 1
+        if 'use_second_lsb' in ai_options:
+            bit_position = 1 if ai_options.get('use_second_lsb') else 0
         if ai_options.get('prefer_luma') is True:
             channel_mode = 'luma'
         if ai_options.get('prefer_luma') is False and 'prefer_luma' in ai_options:

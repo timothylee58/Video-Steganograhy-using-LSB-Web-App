@@ -161,15 +161,16 @@ class VideoService:
         # length (16-byte salt + 16-byte IV/nonce + 16-byte GCM auth tag).
         encryption_overhead = 48
 
+        usable_payload = max(0, usable_capacity - encryption_overhead)
         return {
             'total_capacity_bytes': total_capacity,
-            'usable_capacity_bytes': max(0, usable_capacity - encryption_overhead),
-            'usable_capacity_kb': round((usable_capacity - encryption_overhead) / 1024, 2),
-            'usable_capacity_mb': round((usable_capacity - encryption_overhead) / (1024 * 1024), 4),
+            'usable_capacity_bytes': usable_payload,
+            'usable_capacity_kb': round(usable_payload / 1024, 2),
+            'usable_capacity_mb': round(usable_payload / (1024 * 1024), 4),
             'frame_count': frame_count,
             'capacity_per_frame_bytes': capacity_per_frame,
             # Approximate maximum UTF-8 characters (1 byte per ASCII char).
-            'max_characters': max(0, usable_capacity - encryption_overhead)
+            'max_characters': usable_payload
         }
 
     @classmethod

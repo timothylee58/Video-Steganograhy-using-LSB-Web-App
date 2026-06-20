@@ -10,8 +10,8 @@ Architecture:
   - Each batch contains a list of BatchJob dataclass instances.
   - start_batch() uses a ThreadPoolExecutor (up to max_workers=4 threads)
     so multiple jobs run in parallel.
-  - A threading.Lock protects shared state updates so progress counters
-    remain consistent when multiple threads complete simultaneously.
+  - A threading.Lock serialises batch creation and job-progress updates;
+    the overall batch progress counter is updated without the lock.
 
 Why in-memory storage?
   For simplicity in development/demo deployments.  A production system
@@ -102,7 +102,7 @@ class BatchService:
                 video_path=config['video_path'],
                 message=config['message'],
                 password=config['password'],
-                frames=config.get('frames', []),
+                frames=config.get('frames') or [],
                 encryption_strength=config.get('encryption_strength', 'AES-256'),
                 cipher_mode=config.get('cipher_mode', 'GCM'),
                 status=BatchStatus.PENDING,
@@ -191,14 +191,12 @@ class BatchService:
                 if progress_callback:
                     progress_callback(batch['progress'], f"Job {done}/{total} complete")
 
-        # Determine overall batch outcome.
-        if batch['failed_jobs'] == batch['total_jobs']:
-            batch['status'] = BatchStatus.FAILED
-        elif batch['failed_jobs'] > 0:
-            # Partial success: at least one job succeeded.
-            batch['status'] = BatchStatus.COMPLETED
-        else:
-            batch['status'] = BatchStatus.COMPLETED
+        # Determine overall batch outcome, but don't overwrite a CANCELLED status.
+        if batch['status'] != BatchStatus.CANCELLED:
+            if batch['failed_jobs'] == batch['total_jobs']:
+                batch['status'] = BatchStatus.FAILED
+            else:
+                batch['status'] = BatchStatus.COMPLETED
 
         return self.get_batch_status(batch_id)
 
@@ -255,12 +253,13 @@ class BatchService:
         progress field.  Also forwards the update to the batch-level
         callback so the UI can show per-job progress.
         """
-        if batch_id in self.batches:
-            batch = self.batches[batch_id]
-            for job in batch['jobs']:
-                if job.job_id == job_id:
-                    job.progress = progress
-                    break
+        with self._lock:
+            batch = self.batches.get(batch_id)
+            if batch is not None:
+                for job in batch['jobs']:
+                    if job.job_id == job_id:
+                        job.progress = progress
+                        break
 
         if callback:
             callback(progress, f"Job {job_id}: {step}")

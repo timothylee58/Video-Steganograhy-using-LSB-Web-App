@@ -425,5 +425,5 @@ def get_config():
         'encryption_strengths': list(current_app.config['SUPPORTED_KEY_SIZES'].keys()),
         'cipher_modes': current_app.config['SUPPORTED_CIPHER_MODES'],
         'max_file_size': current_app.config['MAX_CONTENT_LENGTH'],
-        'allowed_extensions': list(current_app.config['ALLOWED_EXTENSIONS'])
+        'allowed_extensions': sorted(current_app.config['ALLOWED_EXTENSIONS'])
     })

@@ -2,7 +2,7 @@
 AI Service - Integration with Claude/OpenAI for intelligent steganography
 Provides content-aware embedding, pattern detection, and caption generation
 
-This service adds three layers of AI-powered intelligence on top of the
+This service adds four layers of AI-powered intelligence on top of the
 basic LSB engine:
 
 1. Content-aware embedding (analyze_frame_for_embedding, select_best_frames)
@@ -262,12 +262,15 @@ class AIService:
         prompt = style_prompts.get(style, style_prompts['casual'])
 
         # Try Claude first, then OpenAI, then local fallback.
-        if self.anthropic_key:
-            return await self._generate_with_claude(frame_b64, prompt)
-        elif self.openai_key:
-            return await self._generate_with_openai(frame_b64, prompt)
-        else:
-            return self._generate_fallback_caption(style)
+        try:
+            if self.anthropic_key:
+                return await self._generate_with_claude(frame_b64, prompt)
+            if self.openai_key:
+                return await self._generate_with_openai(frame_b64, prompt)
+        except Exception:
+            pass
+
+        return self._generate_fallback_caption(style)
 
     async def _generate_with_claude(self, image_b64: str, prompt: str) -> str:
         """Generate caption using the Anthropic Claude vision API.
@@ -470,6 +473,9 @@ class AIService:
             if expected > 0:
                 for count in counts:
                     chi_square += ((count - expected) ** 2) / expected
+
+        if not pairs:
+            return 0.0
 
         # Normalize to 0-100: lower chi-square -> higher suspicion score.
         normalized = min(100, max(0, 100 - (chi_square / len(pairs)) * 10))

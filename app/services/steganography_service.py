@@ -40,7 +40,8 @@ class SteganographyService:
 
     # Length header size in bits.  A 4-byte (32-bit) big-endian integer
     # is prepended to the payload so the extractor knows exactly how many
-    # bytes to read back from the bit stream.  Supports payloads up to ~4 GB.
+    # bytes to read back from the bit stream.  Maximum extractable payload
+    # is 100 MB (enforced by the extractor's sanity check).
     LENGTH_HEADER_BITS = 32
 
     @classmethod
@@ -376,7 +377,7 @@ class SteganographyService:
             """Calculate how many bits can be embedded in a frame (or regions)."""
             height, width = frame.shape[:2]
             channels = 1 if channel_mode == 'luma' else 3
-            if not regions:
+            if regions is None:
                 return height * width * channels
 
             cap = 0

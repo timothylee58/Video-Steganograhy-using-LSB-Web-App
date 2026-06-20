@@ -31,6 +31,7 @@ ffprobe/ffmpeg dependency:
 import os
 import json
 import subprocess
+from fractions import Fraction
 from typing import Dict, Optional, List
 from datetime import datetime
 
@@ -39,8 +40,8 @@ class MetadataService:
     """Service for preserving and managing video metadata."""
 
     # The subset of ffprobe tags we attempt to copy to the output video.
-    # Other tags (e.g. encoder fingerprints) are intentionally excluded
-    # to avoid leaking information about the processing pipeline.
+    # Note: 'encoder' is intentionally included to maintain plausible metadata;
+    # tags not in this list are excluded to avoid leaking processing artefacts.
     PRESERVE_FIELDS = [
         'title', 'artist', 'album', 'date', 'comment',
         'genre', 'copyright', 'description', 'synopsis',
@@ -79,7 +80,7 @@ class MetadataService:
                 '-print_format', 'json',
                 '-show_format', '-show_streams',
                 video_path
-            ], capture_output=True, text=True)
+            ], capture_output=True, text=True, timeout=30)
 
             if result.returncode == 0:
                 probe_data = json.loads(result.stdout)
@@ -99,12 +100,17 @@ class MetadataService:
                 if 'streams' in probe_data:
                     for stream in probe_data['streams']:
                         if stream.get('codec_type') == 'video':
+                            # r_frame_rate is a fraction string like '30000/1001'; use
+                            # Fraction to parse it safely instead of eval().
+                            try:
+                                fps_val = float(Fraction(stream.get('r_frame_rate', '0/1')))
+                            except (ValueError, ZeroDivisionError):
+                                fps_val = 0.0
                             metadata['technical_info']['video'] = {
                                 'codec': stream.get('codec_name'),
                                 'width': stream.get('width'),
                                 'height': stream.get('height'),
-                                # r_frame_rate is a fraction string like '30000/1001'
-                                'fps': eval(stream.get('r_frame_rate', '0/1')),
+                                'fps': fps_val,
                                 'pixel_format': stream.get('pix_fmt')
                             }
                         elif stream.get('codec_type') == 'audio':
@@ -181,7 +187,7 @@ class MetadataService:
             # -y overwrites the output file without prompting.
             cmd.extend(['-y', output_path])
 
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
 
             if result.returncode == 0:
                 return output_path

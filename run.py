@@ -47,13 +47,16 @@ if __name__ == '__main__':
     ================================================================
     """)
 
-    # Run the server with Flask-SocketIO's built-in server.
-    # host='0.0.0.0'  – listen on all network interfaces so the app
-    #                    is accessible from outside the container/VM.
-    # allow_unsafe_werkzeug=True – required when using the Werkzeug
-    #                              dev server with SocketIO in newer versions.
-    socketio.run(app,
-                 host='0.0.0.0',
-                 port=5000,
-                 debug=True,
-                 allow_unsafe_werkzeug=True)
+    # Gate debug mode and binding on the environment so production
+    # deployments are not accidentally started with the Werkzeug debugger.
+    debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'
+    host = os.environ.get('HOST', '127.0.0.1' if debug_mode else '0.0.0.0')
+    port = int(os.environ.get('PORT', '5000'))
+
+    socketio.run(
+        app,
+        host=host,
+        port=port,
+        debug=debug_mode,
+        allow_unsafe_werkzeug=debug_mode,
+    )
