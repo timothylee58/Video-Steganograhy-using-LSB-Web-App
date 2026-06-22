@@ -22,9 +22,9 @@ basic LSB engine:
    cover video or embedding configuration.
 
 3. AI caption generation (generate_innocent_caption)
-   Uses the Google Gemini Flash vision API to generate a plausible, innocent-
-   looking description for the output video.  Falls back to hand-crafted
-   captions if no API key is configured.
+   Uses the Groq cloud inference API (llama-3.2-11b-vision) to generate a
+   plausible, innocent-looking description for the output video.  Falls back
+   to hand-crafted captions if no API key is configured.
 
 4. Social media optimisation (optimize_for_social_media)
    Social media platforms re-encode uploaded videos (lossy compression).
@@ -49,8 +49,9 @@ import cv2
 class AIService:
     """AI-powered enhancements for video steganography."""
 
-    # Gemini REST endpoint; model and API key are substituted at call time.
-    GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
+    # Groq OpenAI-compatible endpoint for vision inference.
+    GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+    GROQ_VISION_MODEL = "llama-3.2-11b-vision-preview"
 
     # ------------------------------------------------------------------ #
     # Platform-specific embedding configurations
@@ -92,8 +93,8 @@ class AIService:
     }
 
     def __init__(self):
-        # Gemini API key; falls back to local caption generation if not set.
-        self.gemini_key = os.environ.get('GEMINI_API_KEY')
+        # Groq API key; falls back to local caption generation if not set.
+        self.groq_key = os.environ.get('GROQ_API_KEY')
 
     # ================== Content-Aware Embedding ==================
 
@@ -258,47 +259,52 @@ class AIService:
 
         prompt = style_prompts.get(style, style_prompts['casual'])
 
-        # Try Gemini first, then local fallback.
+        # Try Groq first, then local fallback.
         try:
-            if self.gemini_key:
-                return await self._generate_with_gemini(frame_b64, prompt)
+            if self.groq_key:
+                return await self._generate_with_groq(frame_b64, prompt)
         except Exception:
             pass
 
         return self._generate_fallback_caption(style)
 
-    async def _generate_with_gemini(self, image_b64: str, prompt: str) -> str:
-        """Generate caption using the Google Gemini Flash vision API.
+    async def _generate_with_groq(self, image_b64: str, prompt: str) -> str:
+        """Generate caption using the Groq cloud inference API.
 
-        Uses the REST API directly with an API key — no SDK required.
+        Groq exposes an OpenAI-compatible endpoint, so the request format
+        mirrors the OpenAI chat completions API.  The llama-3.2-11b-vision
+        model supports inline base64 images via the image_url content type.
         Falls back to local generation on any error or non-200 response.
         """
-        url = f"{self.GEMINI_API_URL}?key={self.gemini_key}"
-
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                url,
-                headers={"Content-Type": "application/json"},
+                self.GROQ_API_URL,
+                headers={
+                    "Authorization": f"Bearer {self.groq_key}",
+                    "Content-Type": "application/json"
+                },
                 json={
-                    "contents": [{
-                        "parts": [
+                    "model": self.GROQ_VISION_MODEL,
+                    "messages": [{
+                        "role": "user",
+                        "content": [
                             {
-                                "inline_data": {
-                                    "mime_type": "image/jpeg",
-                                    "data": image_b64
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{image_b64}"
                                 }
                             },
-                            {"text": prompt}
+                            {"type": "text", "text": prompt}
                         ]
                     }],
-                    "generationConfig": {"maxOutputTokens": 150}
+                    "max_tokens": 150
                 },
                 timeout=30.0
             )
 
         if response.status_code == 200:
             data = response.json()
-            return data['candidates'][0]['content']['parts'][0]['text']
+            return data['choices'][0]['message']['content']
         return self._generate_fallback_caption('casual')
 
     def _generate_fallback_caption(self, style: str) -> str:
