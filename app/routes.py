@@ -98,11 +98,23 @@ def calculate_capacity():
         return jsonify({'error': 'Video file not found'}), 404
     
     from app.services.video_service import VideoService
-    capacity = VideoService.calculate_capacity(video_path, frames)
-    
+    from app.services.steganography_service import SteganographyService
+
+    ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
+    ecc_symbols = max(2, min(ecc_symbols, 30))
+
+    raw_capacity = VideoService.calculate_capacity(video_path, frames)
+    # ECC overhead: each byte becomes (1 + ecc_symbols/255) bytes roughly;
+    # usable capacity shrinks by the ECC expansion ratio.
+    ecc_overhead_ratio = ecc_symbols / 255
+    usable_capacity = int(raw_capacity / (1 + ecc_overhead_ratio))
+
     return jsonify({
         'success': True,
-        'capacity': capacity
+        'capacity': usable_capacity,
+        'raw_capacity': raw_capacity,
+        'ecc_symbols': ecc_symbols,
+        'ecc_overhead_bytes': raw_capacity - usable_capacity,
     })
 
 
@@ -141,6 +153,10 @@ def embed_message():
     
     ai_options = data.get('ai_options') or {}
 
+    from app.services.steganography_service import SteganographyService
+    ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
+    ecc_symbols = max(2, min(ecc_symbols, 30))
+
     # Start async task (fallback to sync if Celery broker isn't available)
     from app.tasks import embed_message_task, run_embed_pipeline
     try:
@@ -152,7 +168,8 @@ def embed_message():
             encryption_strength=encryption_strength,
             cipher_mode=cipher_mode,
             output_folder=current_app.config['OUTPUT_FOLDER'],
-            ai_options=ai_options
+            ai_options=ai_options,
+            ecc_symbols=ecc_symbols,
         )
         return jsonify({
             'success': True,
@@ -169,7 +186,8 @@ def embed_message():
                 encryption_strength=encryption_strength,
                 cipher_mode=cipher_mode,
                 output_folder=current_app.config['OUTPUT_FOLDER'],
-                ai_options=ai_options
+                ai_options=ai_options,
+                ecc_symbols=ecc_symbols,
             )
             return jsonify({
                 'success': True,

@@ -73,17 +73,21 @@ def run_embed_pipeline(*,
                        cipher_mode: str,
                        output_folder: str,
                        ai_options: Optional[Dict] = None,
+                       ecc_symbols: int = 10,
                        read_progress: Optional[Callable] = None,
                        embed_progress: Optional[Callable] = None,
                        write_progress: Optional[Callable] = None) -> Dict:
     """Embed pipeline used by both Celery and synchronous execution."""
     from app.services import CryptoService, VideoService, SteganographyService
 
+    SteganographyService.RS_ECC_SYMBOLS = max(2, min(ecc_symbols, 30))
+
     encrypted_data, _metadata = CryptoService.encrypt(
         message, password, encryption_strength, cipher_mode
     )
 
     frame_data = VideoService.read_frames(video_path, frames, read_progress)
+    frame_total = len(frame_data)
     if len(frame_data) == 0:
         raise ValueError("No valid frames could be read")
 
@@ -131,10 +135,16 @@ def run_embed_pipeline(*,
             except Exception:
                 caption = None
 
+    def embed_progress_with_frames(progress, step):
+        frame_current = max(1, int(progress * frame_total / 100)) if frame_total else None
+        if embed_progress:
+            embed_progress(progress, step)
+        # step already contains frame info when called from SteganographyService
+
     result = SteganographyService.embed_message(
         frame_data,
         encrypted_data,
-        embed_progress,
+        embed_progress_with_frames,
         regions_by_frame=regions_by_frame,
         bit_position=bit_position,
         channel_mode=channel_mode
@@ -263,7 +273,8 @@ def run_extract_pipeline(*,
 def embed_message_task(self, video_path: str, message: str, password: str,
                        frames: List[int], encryption_strength: str,
                        cipher_mode: str, output_folder: str,
-                       ai_options: Optional[Dict] = None) -> dict:
+                       ai_options: Optional[Dict] = None,
+                       ecc_symbols: int = 10) -> dict:
     """
     Async task to embed encrypted message into video.
     
@@ -306,10 +317,15 @@ def embed_message_task(self, video_path: str, message: str, password: str,
             'current_step': 'Embedding encrypted data...'
         })
         
+        total_frames = len(frames)
+
         def embed_progress(progress, step):
+            frame_num = round(progress / 100 * total_frames)
             self.update_state(state='PROGRESS', meta={
                 'progress': 50 + (progress * 0.2),  # 50-70%
-                'current_step': step
+                'current_step': step,
+                'frame_current': frame_num,
+                'frame_total': total_frames,
             })
 
         # Step 3: Write output video
@@ -333,6 +349,7 @@ def embed_message_task(self, video_path: str, message: str, password: str,
             cipher_mode=cipher_mode,
             output_folder=output_folder,
             ai_options=ai_options,
+            ecc_symbols=ecc_symbols,
             read_progress=read_progress,
             embed_progress=embed_progress,
             write_progress=write_progress
@@ -408,10 +425,15 @@ def extract_message_task(self, video_path: str, password: str,
             'current_step': 'Extracting hidden data...'
         })
         
+        total_extract_frames = end_frame - start_frame
+
         def extract_progress(progress, step):
+            frame_num = round(progress / 100 * total_extract_frames)
             self.update_state(state='PROGRESS', meta={
                 'progress': 55 + (progress * 0.25),  # 55-80%
-                'current_step': step
+                'current_step': step,
+                'frame_current': frame_num,
+                'frame_total': total_extract_frames,
             })
 
         pipeline_result = run_extract_pipeline(

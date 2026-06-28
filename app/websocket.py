@@ -36,22 +36,20 @@ def handle_leave_task(data):
         emit('left', {'task_id': task_id})
 
 
-def send_progress_update(task_id: str, progress: int, step: str, status: str = 'PROGRESS'):
-    """
-    Send progress update to all clients subscribed to a task.
-    
-    Args:
-        task_id: The task ID
-        progress: Progress percentage (0-100)
-        step: Current step description
-        status: Task status
-    """
-    socketio.emit('task_progress', {
+def send_progress_update(task_id: str, progress: int, step: str, status: str = 'PROGRESS',
+                          frame_current: int = None, frame_total: int = None):
+    """Send progress update to all clients subscribed to a task."""
+    payload = {
         'task_id': task_id,
         'progress': progress,
         'current_step': step,
-        'status': status
-    }, room=task_id)
+        'status': status,
+    }
+    if frame_current is not None:
+        payload['frame_current'] = frame_current
+    if frame_total is not None:
+        payload['frame_total'] = frame_total
+    socketio.emit('task_progress', payload, room=task_id)
 
 
 def send_task_complete(task_id: str, result: dict):
