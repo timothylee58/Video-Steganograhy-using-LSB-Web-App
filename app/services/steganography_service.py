@@ -56,31 +56,35 @@ class SteganographyService:
         return bytes(byte_array)
     
     @classmethod
-    def apply_error_correction(cls, data: bytes) -> bytes:
+    def apply_error_correction(cls, data: bytes, ecc_symbols: Optional[int] = None) -> bytes:
         """
         Apply Reed-Solomon error correction to data.
-        
+
         Args:
             data: Original data bytes
-            
+            ecc_symbols: Number of ECC symbols (overrides class default when provided)
+
         Returns:
             Data with error correction codes appended
         """
-        rs = reedsolo.RSCodec(cls.RS_ECC_SYMBOLS)
+        n = ecc_symbols if ecc_symbols is not None else cls.RS_ECC_SYMBOLS
+        rs = reedsolo.RSCodec(n)
         return bytes(rs.encode(data))
-    
+
     @classmethod
-    def decode_error_correction(cls, data: bytes) -> bytes:
+    def decode_error_correction(cls, data: bytes, ecc_symbols: Optional[int] = None) -> bytes:
         """
         Decode and correct errors using Reed-Solomon.
-        
+
         Args:
             data: Data with error correction codes
-            
+            ecc_symbols: Number of ECC symbols (overrides class default when provided)
+
         Returns:
             Corrected original data
         """
-        rs = reedsolo.RSCodec(cls.RS_ECC_SYMBOLS)
+        n = ecc_symbols if ecc_symbols is not None else cls.RS_ECC_SYMBOLS
+        rs = reedsolo.RSCodec(n)
         try:
             decoded = rs.decode(data)
             # rs.decode returns tuple (decoded_msg, decoded_msgecc, errata_pos)
@@ -258,7 +262,8 @@ class SteganographyService:
                      progress_callback: Optional[Callable] = None,
                      regions_by_frame: Optional[dict] = None,
                      bit_position: int = 0,
-                     channel_mode: str = 'rgb') -> dict:
+                     channel_mode: str = 'rgb',
+                     ecc_symbols: Optional[int] = None) -> dict:
         """
         Embed encrypted message across multiple frames.
         
@@ -271,7 +276,7 @@ class SteganographyService:
             Dictionary with modified frames and metadata
         """
         # Apply error correction
-        protected_data = cls.apply_error_correction(encrypted_data)
+        protected_data = cls.apply_error_correction(encrypted_data, ecc_symbols=ecc_symbols)
         
         # Add length header (4 bytes big-endian)
         data_length = len(protected_data)
@@ -361,7 +366,8 @@ class SteganographyService:
                        progress_callback: Optional[Callable] = None,
                        regions_by_frame: Optional[dict] = None,
                        bit_position: int = 0,
-                       channel_mode: str = 'rgb') -> bytes:
+                       channel_mode: str = 'rgb',
+                       ecc_symbols: Optional[int] = None) -> bytes:
         """
         Extract encrypted message from frames.
         
@@ -430,7 +436,7 @@ class SteganographyService:
         
         # Decode error correction
         try:
-            original_data = cls.decode_error_correction(protected_data)
+            original_data = cls.decode_error_correction(protected_data, ecc_symbols=ecc_symbols)
             return original_data
         except Exception as e:
             raise ValueError(f"Failed to decode data: {e}")

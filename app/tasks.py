@@ -80,7 +80,7 @@ def run_embed_pipeline(*,
     """Embed pipeline used by both Celery and synchronous execution."""
     from app.services import CryptoService, VideoService, SteganographyService
 
-    SteganographyService.RS_ECC_SYMBOLS = max(2, min(ecc_symbols, 30))
+    ecc_symbols = max(2, min(ecc_symbols, 30))
 
     encrypted_data, _metadata = CryptoService.encrypt(
         message, password, encryption_strength, cipher_mode
@@ -135,19 +135,14 @@ def run_embed_pipeline(*,
             except Exception:
                 caption = None
 
-    def embed_progress_with_frames(progress, step):
-        frame_current = max(1, int(progress * frame_total / 100)) if frame_total else None
-        if embed_progress:
-            embed_progress(progress, step)
-        # step already contains frame info when called from SteganographyService
-
     result = SteganographyService.embed_message(
         frame_data,
         encrypted_data,
-        embed_progress_with_frames,
+        embed_progress,
         regions_by_frame=regions_by_frame,
         bit_position=bit_position,
-        channel_mode=channel_mode
+        channel_mode=channel_mode,
+        ecc_symbols=ecc_symbols,
     )
 
     import uuid
@@ -247,7 +242,8 @@ def run_extract_pipeline(*,
         extract_progress,
         regions_by_frame=regions_by_frame,
         bit_position=bit_position,
-        channel_mode=channel_mode
+        channel_mode=channel_mode,
+        ecc_symbols=None,
     )
 
     decrypted_message = CryptoService.decrypt(

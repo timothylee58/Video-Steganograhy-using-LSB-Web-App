@@ -103,7 +103,8 @@ def calculate_capacity():
     ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
     ecc_symbols = max(2, min(ecc_symbols, 30))
 
-    raw_capacity = VideoService.calculate_capacity(video_path, frames)
+    capacity_info = VideoService.calculate_capacity(video_path, frames)
+    raw_capacity = capacity_info['total_capacity_bytes']
     # ECC overhead: each byte becomes (1 + ecc_symbols/255) bytes roughly;
     # usable capacity shrinks by the ECC expansion ratio.
     ecc_overhead_ratio = ecc_symbols / 255
