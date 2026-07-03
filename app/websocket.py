@@ -38,7 +38,12 @@ def handle_leave_task(data):
 
 def send_progress_update(task_id: str, progress: int, step: str, status: str = 'PROGRESS',
                           frame_current: int = None, frame_total: int = None):
-    """Send progress update to all clients subscribed to a task."""
+    """Send progress update to all clients subscribed to a task.
+
+    Intended for use with a Celery signal receiver when running with a Redis
+    message broker. Clients without push delivery should poll /api/task/<id>,
+    which also exposes frame_current and frame_total from Celery task meta.
+    """
     payload = {
         'task_id': task_id,
         'progress': progress,

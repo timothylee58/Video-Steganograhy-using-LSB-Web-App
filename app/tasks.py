@@ -189,6 +189,7 @@ def run_extract_pipeline(*,
                          encryption_strength: str,
                          cipher_mode: str,
                          ai_options: Optional[Dict] = None,
+                         ecc_symbols: int = 10,
                          read_progress: Optional[Callable] = None,
                          extract_progress: Optional[Callable] = None) -> Dict:
     """Extract pipeline used by both Celery and synchronous execution."""
@@ -237,13 +238,14 @@ def run_extract_pipeline(*,
             except Exception:
                 suspicion = None
 
+    ecc_symbols = max(2, min(ecc_symbols, 30))
     encrypted_data = SteganographyService.extract_message(
         frame_data,
         extract_progress,
         regions_by_frame=regions_by_frame,
         bit_position=bit_position,
         channel_mode=channel_mode,
-        ecc_symbols=None,
+        ecc_symbols=ecc_symbols,
     )
 
     decrypted_message = CryptoService.decrypt(
@@ -370,7 +372,8 @@ def embed_message_task(self, video_path: str, message: str, password: str,
 def extract_message_task(self, video_path: str, password: str,
                          start_frame: int, end_frame: int,
                          encryption_strength: str, cipher_mode: str,
-                         ai_options: Optional[Dict] = None) -> dict:
+                         ai_options: Optional[Dict] = None,
+                         ecc_symbols: int = 10) -> dict:
     """
     Async task to extract message from video.
     
@@ -440,6 +443,7 @@ def extract_message_task(self, video_path: str, password: str,
             encryption_strength=encryption_strength,
             cipher_mode=cipher_mode,
             ai_options=ai_options,
+            ecc_symbols=ecc_symbols,
             read_progress=read_progress,
             extract_progress=extract_progress
         )

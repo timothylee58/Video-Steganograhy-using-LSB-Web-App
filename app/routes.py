@@ -100,19 +100,27 @@ def calculate_capacity():
     from app.services.video_service import VideoService
     from app.services.steganography_service import SteganographyService
 
-    ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
+    try:
+        ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'ecc_symbols must be an integer'}), 400
     ecc_symbols = max(2, min(ecc_symbols, 30))
 
     capacity_info = VideoService.calculate_capacity(video_path, frames)
     raw_capacity = capacity_info['total_capacity_bytes']
-    # ECC overhead: each byte becomes (1 + ecc_symbols/255) bytes roughly;
-    # usable capacity shrinks by the ECC expansion ratio.
-    ecc_overhead_ratio = ecc_symbols / 255
-    usable_capacity = int(raw_capacity / (1 + ecc_overhead_ratio))
+    # RS(255, 255-n) encodes k source bytes into 255 codeword bytes,
+    # so usable = raw * (255 - ecc_symbols) / 255
+    usable_capacity = int(raw_capacity * (255 - ecc_symbols) / 255)
 
     return jsonify({
         'success': True,
-        'capacity': usable_capacity,
+        'capacity': {
+            **capacity_info,
+            'usable_capacity_bytes': usable_capacity,
+            'usable_capacity_kb': round(usable_capacity / 1024, 2),
+            'usable_capacity_mb': round(usable_capacity / (1024 * 1024), 4),
+        },
+        'usable_capacity': usable_capacity,
         'raw_capacity': raw_capacity,
         'ecc_symbols': ecc_symbols,
         'ecc_overhead_bytes': raw_capacity - usable_capacity,
@@ -225,6 +233,13 @@ def extract_message():
     
     ai_options = data.get('ai_options') or {}
 
+    from app.services.steganography_service import SteganographyService
+    try:
+        ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'ecc_symbols must be an integer'}), 400
+    ecc_symbols = max(2, min(ecc_symbols, 30))
+
     # Start async task (fallback to sync if Celery broker isn't available)
     from app.tasks import extract_message_task, run_extract_pipeline
     try:
@@ -235,7 +250,8 @@ def extract_message():
             end_frame=data['end_frame'],
             encryption_strength=data.get('encryption_strength', 'AES-256'),
             cipher_mode=data.get('cipher_mode', 'GCM'),
-            ai_options=ai_options
+            ai_options=ai_options,
+            ecc_symbols=ecc_symbols,
         )
         return jsonify({
             'success': True,
@@ -251,7 +267,8 @@ def extract_message():
                 end_frame=data['end_frame'],
                 encryption_strength=data.get('encryption_strength', 'AES-256'),
                 cipher_mode=data.get('cipher_mode', 'GCM'),
-                ai_options=ai_options
+                ai_options=ai_options,
+                ecc_symbols=ecc_symbols,
             )
             return jsonify({
                 'success': True,
@@ -310,6 +327,10 @@ def get_task_status(task_id):
     elif task.status == 'PROGRESS':
         response['progress'] = task.info.get('progress', 0)
         response['current_step'] = task.info.get('current_step', '')
+        if 'frame_current' in task.info:
+            response['frame_current'] = task.info['frame_current']
+        if 'frame_total' in task.info:
+            response['frame_total'] = task.info['frame_total']
     elif task.status == 'SUCCESS':
         response['progress'] = 100
         response['result'] = task.result
