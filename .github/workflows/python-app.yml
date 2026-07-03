@@ -52,7 +52,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - uses: superfly/flyctl-actions/setup-flyctl@v1
+    - uses: superfly/flyctl-actions/setup-flyctl@v1.5
     - name: Deploy
       run: flyctl deploy --remote-only
       env:
