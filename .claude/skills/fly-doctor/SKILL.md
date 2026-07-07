@@ -32,7 +32,7 @@ The fix is `git checkout master -- fly.toml` (or `git pull`), never hand-rewriti
 | Symptom in output | Root cause | Fix |
 |---|---|---|
 | `only 1 volume supported` | second `[[mounts]]` in fly.toml | restore fly.toml from git; then check for a stray `vidstega_outputs` volume |
-| `vidstega_outputs` appears in `fly volumes list` | Fly auto-created it for the bogus mount | `fly volumes destroy <vol_id> -y` (destroy by ID; it may be recreated on each bad deploy — fix fly.toml FIRST) |
+| `vidstega_outputs` appears in `fly volumes list` | Fly auto-created it for the bogus mount in the WEB app's fly.toml | Check it's empty/expendable first — `fly-worker.toml` legitimately mounts a `vidstega_outputs` for the worker app. If it belongs to the web app and holds no data, `fly volumes destroy <vol_id>` (no `-y`; let the prompt guard). It may be recreated on each bad deploy — fix fly.toml FIRST |
 | health check timeout + logs show `Error: class uri 'eventlet' invalid` | gunicorn ≥23 has no eventlet worker | Dockerfile CMD must be `gunicorn -w 1 --threads 4 --bind 0.0.0.0:8080 --timeout 300 run:app`; env `SOCKETIO_ASYNC_MODE=threading` |
 | `libGL.so.1: cannot open shared object` | opencv non-headless or missing lib | Dockerfile installs `libgl1` (NOT `libgl1-mesa-glx` — gone on Bookworm) and strips `opencv-python`, keeping headless |
 | `machine still active, refusing to start` / machine stuck with old config | machine created under a bad fly.toml cannot be updated across mount changes | `fly machines list` → `fly machines destroy <id> --force` → redeploy |
@@ -46,9 +46,11 @@ Give the user this exact order — order matters because Fly recreates volumes/m
 from whatever fly.toml it sees:
 
 ```powershell
-git pull                                   # 1. correct fly.toml first
-fly volumes list                           # 2. destroy any vidstega_outputs BY ID
-fly volumes destroy <vol_xxx> -y
+git fetch origin master                    # 1. force-restore the committed fly.toml
+git checkout origin/master -- fly.toml     #    (git pull won't discard a locally drifted file)
+fly volumes list                           # 2. destroy a stray WEB-app vidstega_outputs BY ID
+fly volumes destroy <vol_xxx>              #    (no -y: confirm it's unattached/empty first —
+                                           #     the worker app uses a volume of the same name)
 fly machines list                          # 3. destroy stuck machines
 fly machines destroy <machine_id> --force
 fly deploy                                 # 4. plain deploy, no --image, no launch
@@ -60,6 +62,9 @@ that action is user-only, by explicit instruction.
 
 ## After it deploys
 
-Verify: `fly status` all green, then `curl https://video-steganograhy-using-lsb-web-app.fly.dev/health`
+Verify: `fly status` all green, then
+`curl.exe https://video-steganograhy-using-lsb-web-app.fly.dev/health`
+(or `Invoke-RestMethod <url>` — plain `curl` in PowerShell 5.1 aliases
+Invoke-WebRequest and prints a response object, not the JSON body)
 returns `{"status": "healthy", ...}`. If health is green but uploads fail, re-check
 the OUTPUT_FOLDER row above.
