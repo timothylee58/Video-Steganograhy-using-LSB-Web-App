@@ -109,8 +109,11 @@ def calculate_capacity():
     capacity_info = VideoService.calculate_capacity(video_path, frames)
     raw_capacity = capacity_info['total_capacity_bytes']
     # RS(255, 255-n) encodes k source bytes into 255 codeword bytes,
-    # so usable = raw * (255 - ecc_symbols) / 255
-    usable_capacity = int(raw_capacity * (255 - ecc_symbols) / 255)
+    # so post-ECC capacity = raw * (255 - ecc_symbols) / 255. Encryption adds
+    # a fixed ~48 bytes (salt + IV + GCM tag), same constant VideoService uses.
+    encryption_overhead = 48
+    post_ecc_capacity = int(raw_capacity * (255 - ecc_symbols) / 255)
+    usable_capacity = max(0, post_ecc_capacity - encryption_overhead)
 
     return jsonify({
         'success': True,
@@ -123,7 +126,7 @@ def calculate_capacity():
         'usable_capacity': usable_capacity,
         'raw_capacity': raw_capacity,
         'ecc_symbols': ecc_symbols,
-        'ecc_overhead_bytes': raw_capacity - usable_capacity,
+        'ecc_overhead_bytes': raw_capacity - post_ecc_capacity,
     })
 
 
@@ -163,7 +166,10 @@ def embed_message():
     ai_options = data.get('ai_options') or {}
 
     from app.services.steganography_service import SteganographyService
-    ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
+    try:
+        ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'ecc_symbols must be an integer'}), 400
     ecc_symbols = max(2, min(ecc_symbols, 30))
 
     # Start async task (fallback to sync if Celery broker isn't available)

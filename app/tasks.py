@@ -315,7 +315,8 @@ def embed_message_task(self, video_path: str, message: str, password: str,
             'current_step': 'Embedding encrypted data...'
         })
         
-        total_frames = len(frames)
+        # VideoService.read_frames deduplicates indices, so count unique frames
+        total_frames = len(set(frames))
 
         def embed_progress(progress, step):
             frame_num = round(progress / 100 * total_frames)
