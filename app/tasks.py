@@ -481,10 +481,15 @@ def embed_message_task(self, video_path: str, message: str, password: str,
             write_progress=write_progress
         )
 
-        # Mark as fully complete in the result backend.
+        # embed_message stops once the payload is fully embedded, so the last
+        # callback may report fewer frames than requested. Emit a terminal
+        # frame-progress update from the actual frames used.
+        frames_used = pipeline_result.get('frames_used', total_frames)
         self.update_state(state='PROGRESS', meta={
             'progress': 100,
-            'current_step': 'Complete!'
+            'current_step': 'Complete!',
+            'frame_current': frames_used,
+            'frame_total': frames_used,
         })
 
         return pipeline_result
@@ -597,9 +602,15 @@ def extract_message_task(self, video_path: str, password: str,
             'current_step': 'Decrypting message...'
         })
 
+        # extract_message breaks out of its loop before the callback once
+        # enough bits are gathered (a one-frame extraction never fires it), so
+        # emit a terminal frame-progress update from the actual frame count.
+        frames_processed = pipeline_result.get('frames_processed', total_extract_frames)
         self.update_state(state='PROGRESS', meta={
             'progress': 100,
-            'current_step': 'Complete!'
+            'current_step': 'Complete!',
+            'frame_current': frames_processed,
+            'frame_total': frames_processed,
         })
 
         return pipeline_result

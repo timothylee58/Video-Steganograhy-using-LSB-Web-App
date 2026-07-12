@@ -173,7 +173,11 @@ def calculate_capacity():
             'usable_capacity_bytes': usable_capacity,
             'usable_capacity_kb': round(usable_capacity / 1024, 2),
             'usable_capacity_mb': round(usable_capacity / (1024 * 1024), 4),
+            # max_characters is a BYTE budget (UTF-8: multibyte chars consume
+            # several bytes each); kept for backward compatibility. Prefer
+            # max_bytes in new client code.
             'max_characters': usable_capacity,
+            'max_bytes': usable_capacity,
         },
         'usable_capacity': usable_capacity,
         'raw_capacity': raw_capacity,
