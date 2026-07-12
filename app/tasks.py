@@ -381,7 +381,8 @@ def run_extract_pipeline(*,
 def embed_message_task(self, video_path: str, message: str, password: str,
                        frames: List[int], encryption_strength: str,
                        cipher_mode: str, output_folder: str,
-                       ai_options: Optional[Dict] = None) -> dict:
+                       ai_options: Optional[Dict] = None,
+                       ecc_symbols: int = 10) -> dict:
     """Async Celery task to embed an encrypted message into a video.
 
     bind=True gives access to `self` so the task can call
@@ -435,6 +436,9 @@ def embed_message_task(self, video_path: str, message: str, password: str,
             'progress': 50,
             'current_step': 'Embedding encrypted data...'
         })
+
+        # VideoService.read_frames deduplicates indices, so count unique frames
+        total_frames = len(set(frames))
 
         def embed_progress(progress, step):
             frame_num = round(progress / 100 * total_frames)
@@ -498,7 +502,8 @@ def embed_message_task(self, video_path: str, message: str, password: str,
 def extract_message_task(self, video_path: str, password: str,
                          start_frame: int, end_frame: int,
                          encryption_strength: str, cipher_mode: str,
-                         ai_options: Optional[Dict] = None) -> dict:
+                         ai_options: Optional[Dict] = None,
+                         ecc_symbols: int = 10) -> dict:
     """Async Celery task to extract a hidden message from a video.
 
     Mirrors embed_message_task in structure.  Decryption requires the
@@ -557,6 +562,8 @@ def extract_message_task(self, video_path: str, password: str,
             'progress': 55,
             'current_step': 'Extracting hidden data...'
         })
+
+        total_extract_frames = end_frame - start_frame
 
         def extract_progress(progress, step):
             frame_num = round(progress / 100 * total_extract_frames)

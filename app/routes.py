@@ -165,7 +165,6 @@ def calculate_capacity():
     encryption_overhead = 48
     post_ecc_capacity = int(raw_capacity * (255 - ecc_symbols) / 255)
     usable_capacity = max(0, post_ecc_capacity - encryption_overhead)
-    capacity = VideoService.calculate_capacity(video_path, frames)
 
     return jsonify({
         'success': True,
@@ -229,6 +228,13 @@ def embed_message():
     # ai_options may contain: content_aware, smart_compression_platform,
     # use_second_lsb, prefer_luma, generate_caption, detect_suspicious, caption_style.
     ai_options = data.get('ai_options') or {}
+
+    from app.services.steganography_service import SteganographyService
+    try:
+        ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'ecc_symbols must be an integer'}), 400
+    ecc_symbols = max(2, min(ecc_symbols, 30))
 
     # Start async task (fallback to sync if Celery broker isn't available).
     # Using .delay() sends the task to the Celery/Redis queue.
@@ -304,6 +310,13 @@ def extract_message():
         return jsonify({'error': 'Video file not found'}), 404
 
     ai_options = data.get('ai_options') or {}
+
+    from app.services.steganography_service import SteganographyService
+    try:
+        ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'ecc_symbols must be an integer'}), 400
+    ecc_symbols = max(2, min(ecc_symbols, 30))
 
     # Attempt async via Celery; fall back to synchronous execution.
     from app.tasks import extract_message_task, run_extract_pipeline

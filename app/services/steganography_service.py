@@ -90,7 +90,7 @@ class SteganographyService:
         return bytes(byte_array)
 
     @classmethod
-    def apply_error_correction(cls, data: bytes) -> bytes:
+    def apply_error_correction(cls, data: bytes, ecc_symbols: Optional[int] = None) -> bytes:
         """Apply Reed-Solomon error correction to data.
 
         Encodes the data into RS codewords by appending ECC check symbols.
@@ -108,7 +108,7 @@ class SteganographyService:
         return bytes(rs.encode(data))
 
     @classmethod
-    def decode_error_correction(cls, data: bytes) -> bytes:
+    def decode_error_correction(cls, data: bytes, ecc_symbols: Optional[int] = None) -> bytes:
         """Decode and correct errors using Reed-Solomon.
 
         Attempts to decode the RS-encoded data and correct any symbol
@@ -337,7 +337,8 @@ class SteganographyService:
                      progress_callback: Optional[Callable] = None,
                      regions_by_frame: Optional[dict] = None,
                      bit_position: int = 0,
-                     channel_mode: str = 'rgb') -> dict:
+                     channel_mode: str = 'rgb',
+                     ecc_symbols: Optional[int] = None) -> dict:
         """Embed an encrypted message across multiple video frames.
 
         Distributes the payload across as many frames as needed.
@@ -363,7 +364,7 @@ class SteganographyService:
             protected_length, and frames_used
         """
         # Apply Reed-Solomon error correction before embedding.
-        protected_data = cls.apply_error_correction(encrypted_data)
+        protected_data = cls.apply_error_correction(encrypted_data, ecc_symbols=ecc_symbols)
 
         # Prepend a 4-byte big-endian length so the extractor knows exactly
         # how many bytes of RS-encoded data to read back.
@@ -456,7 +457,8 @@ class SteganographyService:
                        progress_callback: Optional[Callable] = None,
                        regions_by_frame: Optional[dict] = None,
                        bit_position: int = 0,
-                       channel_mode: str = 'rgb') -> bytes:
+                       channel_mode: str = 'rgb',
+                       ecc_symbols: Optional[int] = None) -> bytes:
         """Extract an encrypted message from multiple video frames.
 
         Reads LSBs from the frames in order, parses the 4-byte length header

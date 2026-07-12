@@ -73,7 +73,8 @@ def handle_leave_task(data):
         emit('left', {'task_id': task_id})
 
 
-def send_progress_update(task_id: str, progress: int, step: str, status: str = 'PROGRESS'):
+def send_progress_update(task_id: str, progress: int, step: str, status: str = 'PROGRESS',
+                          frame_current: int = None, frame_total: int = None):
     """Send progress update to all clients subscribed to a task.
 
     Broadcasts a 'task_progress' event to the Socket.IO room identified
