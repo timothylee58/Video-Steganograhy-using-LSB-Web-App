@@ -73,11 +73,14 @@ see "Deployment" below before touching anything deploy-related).
    **Rule:** grep the route for both `task.delay(` and `run_*_pipeline(` and update
    both call sites with identical kwargs.
 
-4. **Mistake:** "Fixing" the failing **Cloudflare Workers** check on PRs. It fails on
-   every push because a leftover Cloudflare Git integration tries to deploy a
-   Python/OpenCV app to Workers. It is not fixable from the repo.
-   **Rule:** ignore `Workers Builds:` check failures entirely. The checks that matter
-   are `Python application` (lint + pytest) and, on master, the Fly.io deploy job.
+4. **Mistake:** Treating the **Cloudflare Workers** check as meaningful. A leftover
+   Cloudflare Git integration builds on every push. Historically it always failed;
+   since `wrangler.jsonc` landed (with `"assets": {"directory": "."}`) it can
+   "succeed" — but that success only uploads the repo as static files to
+   workers.dev. The Flask backend does not run there; the preview URL is not the app.
+   **Rule:** ignore `Workers Builds:` results, pass or fail. The checks that matter
+   are `Python application` / `build` (lint + pytest) and, on master, the Fly.io
+   deploy job. Never point users at workers.dev URLs.
 
 5. **Mistake:** Editing `fly.toml` from memory or re-adding a second `[[mounts]]`.
    Fly machines support exactly ONE volume; outputs live at

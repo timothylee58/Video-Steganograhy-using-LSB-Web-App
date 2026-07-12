@@ -173,6 +173,7 @@ def calculate_capacity():
             'usable_capacity_bytes': usable_capacity,
             'usable_capacity_kb': round(usable_capacity / 1024, 2),
             'usable_capacity_mb': round(usable_capacity / (1024 * 1024), 4),
+            'max_characters': usable_capacity,
         },
         'usable_capacity': usable_capacity,
         'raw_capacity': raw_capacity,

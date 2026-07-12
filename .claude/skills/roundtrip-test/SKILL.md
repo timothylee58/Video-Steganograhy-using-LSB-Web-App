@@ -17,6 +17,7 @@ embed/extract asymmetries that lint and unit tests miss; this catches them in on
    import cv2, numpy as np
    path = "<scratchpad>/rt_test.avi"
    w = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*"FFV1"), 10, (320, 240))
+   assert w.isOpened(), "VideoWriter failed to open — FFV1 codec unavailable?"
    rng = np.random.default_rng(42)
    for _ in range(30):
        w.write(rng.integers(0, 256, (240, 320, 3), dtype=np.uint8))
@@ -49,6 +50,7 @@ embed/extract asymmetries that lint and unit tests miss; this catches them in on
    ```
 
 3. **Test matrix** — run at minimum:
+
    | Case | Params | What it catches |
    |---|---|---|
    | default | ecc=10, rgb, GCM | baseline regression |

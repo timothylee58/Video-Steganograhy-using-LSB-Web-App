@@ -208,6 +208,9 @@ def run_embed_pipeline(*,
 
     # Step 4: Embed the encrypted bytes into the selected video frames
     # using Least-Significant-Bit substitution with Reed-Solomon protection.
+    # Clamp defensively, mirroring run_extract_pipeline, so both codec
+    # directions always use identical Reed-Solomon parameters.
+    ecc_symbols = max(2, min(ecc_symbols, 30))
     result = SteganographyService.embed_message(
         frame_data,
         encrypted_data,
