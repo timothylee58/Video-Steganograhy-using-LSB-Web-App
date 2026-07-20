@@ -149,11 +149,40 @@ def calculate_capacity():
         return jsonify({'error': 'Video file not found'}), 404
 
     from app.services.video_service import VideoService
-    capacity = VideoService.calculate_capacity(video_path, frames)
+    from app.services.steganography_service import SteganographyService
+
+    try:
+        ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'ecc_symbols must be an integer'}), 400
+    ecc_symbols = max(2, min(ecc_symbols, 30))
+
+    capacity_info = VideoService.calculate_capacity(video_path, frames)
+    raw_capacity = capacity_info['total_capacity_bytes']
+    # RS(255, 255-n) encodes k source bytes into 255 codeword bytes,
+    # so post-ECC capacity = raw * (255 - ecc_symbols) / 255. Encryption adds
+    # a fixed ~48 bytes (salt + IV + GCM tag), same constant VideoService uses.
+    encryption_overhead = 48
+    post_ecc_capacity = int(raw_capacity * (255 - ecc_symbols) / 255)
+    usable_capacity = max(0, post_ecc_capacity - encryption_overhead)
 
     return jsonify({
         'success': True,
-        'capacity': capacity
+        'capacity': {
+            **capacity_info,
+            'usable_capacity_bytes': usable_capacity,
+            'usable_capacity_kb': round(usable_capacity / 1024, 2),
+            'usable_capacity_mb': round(usable_capacity / (1024 * 1024), 4),
+            # max_characters is a BYTE budget (UTF-8: multibyte chars consume
+            # several bytes each); kept for backward compatibility. Prefer
+            # max_bytes in new client code.
+            'max_characters': usable_capacity,
+            'max_bytes': usable_capacity,
+        },
+        'usable_capacity': usable_capacity,
+        'raw_capacity': raw_capacity,
+        'ecc_symbols': ecc_symbols,
+        'ecc_overhead_bytes': raw_capacity - post_ecc_capacity,
     })
 
 
@@ -205,6 +234,13 @@ def embed_message():
     # use_second_lsb, prefer_luma, generate_caption, detect_suspicious, caption_style.
     ai_options = data.get('ai_options') or {}
 
+    from app.services.steganography_service import SteganographyService
+    try:
+        ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'ecc_symbols must be an integer'}), 400
+    ecc_symbols = max(2, min(ecc_symbols, 30))
+
     # Start async task (fallback to sync if Celery broker isn't available).
     # Using .delay() sends the task to the Celery/Redis queue.
     # On connection failure an exception is caught and the pipeline runs
@@ -219,7 +255,8 @@ def embed_message():
             encryption_strength=encryption_strength,
             cipher_mode=cipher_mode,
             output_folder=current_app.config['OUTPUT_FOLDER'],
-            ai_options=ai_options
+            ai_options=ai_options,
+            ecc_symbols=ecc_symbols,
         )
         return jsonify({
             'success': True,
@@ -236,7 +273,8 @@ def embed_message():
                 encryption_strength=encryption_strength,
                 cipher_mode=cipher_mode,
                 output_folder=current_app.config['OUTPUT_FOLDER'],
-                ai_options=ai_options
+                ai_options=ai_options,
+                ecc_symbols=ecc_symbols,
             )
             return jsonify({
                 'success': True,
@@ -278,6 +316,13 @@ def extract_message():
 
     ai_options = data.get('ai_options') or {}
 
+    from app.services.steganography_service import SteganographyService
+    try:
+        ecc_symbols = int(data.get('ecc_symbols', SteganographyService.RS_ECC_SYMBOLS))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'ecc_symbols must be an integer'}), 400
+    ecc_symbols = max(2, min(ecc_symbols, 30))
+
     # Attempt async via Celery; fall back to synchronous execution.
     from app.tasks import extract_message_task, run_extract_pipeline
     try:
@@ -288,7 +333,8 @@ def extract_message():
             end_frame=data['end_frame'],
             encryption_strength=data.get('encryption_strength', 'AES-256'),
             cipher_mode=data.get('cipher_mode', 'GCM'),
-            ai_options=ai_options
+            ai_options=ai_options,
+            ecc_symbols=ecc_symbols,
         )
         return jsonify({
             'success': True,
@@ -304,7 +350,8 @@ def extract_message():
                 end_frame=data['end_frame'],
                 encryption_strength=data.get('encryption_strength', 'AES-256'),
                 cipher_mode=data.get('cipher_mode', 'GCM'),
-                ai_options=ai_options
+                ai_options=ai_options,
+                ecc_symbols=ecc_symbols,
             )
             return jsonify({
                 'success': True,
@@ -379,6 +426,10 @@ def get_task_status(task_id):
         # task.info is the meta dict passed to self.update_state()
         response['progress'] = task.info.get('progress', 0)
         response['current_step'] = task.info.get('current_step', '')
+        if 'frame_current' in task.info:
+            response['frame_current'] = task.info['frame_current']
+        if 'frame_total' in task.info:
+            response['frame_total'] = task.info['frame_total']
     elif task.status == 'SUCCESS':
         response['progress'] = 100
         response['result'] = task.result

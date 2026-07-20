@@ -117,6 +117,7 @@ def run_embed_pipeline(*,
                        cipher_mode: str,
                        output_folder: str,
                        ai_options: Optional[Dict] = None,
+                       ecc_symbols: int = 10,
                        read_progress: Optional[Callable] = None,
                        embed_progress: Optional[Callable] = None,
                        write_progress: Optional[Callable] = None) -> Dict:
@@ -147,6 +148,7 @@ def run_embed_pipeline(*,
     # Step 2: Read the requested frames from disk.
     # VideoService returns a list of (frame_index, numpy_array) tuples.
     frame_data = VideoService.read_frames(video_path, frames, read_progress)
+    frame_total = len(frame_data)
     if len(frame_data) == 0:
         raise ValueError("No valid frames could be read")
 
@@ -206,13 +208,17 @@ def run_embed_pipeline(*,
 
     # Step 4: Embed the encrypted bytes into the selected video frames
     # using Least-Significant-Bit substitution with Reed-Solomon protection.
+    # Clamp defensively, mirroring run_extract_pipeline, so both codec
+    # directions always use identical Reed-Solomon parameters.
+    ecc_symbols = max(2, min(ecc_symbols, 30))
     result = SteganographyService.embed_message(
         frame_data,
         encrypted_data,
         embed_progress,
         regions_by_frame=regions_by_frame,
         bit_position=bit_position,
-        channel_mode=channel_mode
+        channel_mode=channel_mode,
+        ecc_symbols=ecc_symbols,
     )
 
     # Step 5: Write the output video.
@@ -268,6 +274,7 @@ def run_extract_pipeline(*,
                          encryption_strength: str,
                          cipher_mode: str,
                          ai_options: Optional[Dict] = None,
+                         ecc_symbols: int = 10,
                          read_progress: Optional[Callable] = None,
                          extract_progress: Optional[Callable] = None) -> Dict:
     """Extract pipeline used by both Celery and synchronous execution.
@@ -338,13 +345,15 @@ def run_extract_pipeline(*,
             except Exception:
                 suspicion = None
 
+    ecc_symbols = max(2, min(ecc_symbols, 30))
     # Step 4: Extract the raw (encrypted) bytes from the video frames.
     encrypted_data = SteganographyService.extract_message(
         frame_data,
         extract_progress,
         regions_by_frame=regions_by_frame,
         bit_position=bit_position,
-        channel_mode=channel_mode
+        channel_mode=channel_mode,
+        ecc_symbols=ecc_symbols,
     )
 
     # Step 5: Decrypt the extracted bytes to recover the original plaintext.
@@ -375,7 +384,8 @@ def run_extract_pipeline(*,
 def embed_message_task(self, video_path: str, message: str, password: str,
                        frames: List[int], encryption_strength: str,
                        cipher_mode: str, output_folder: str,
-                       ai_options: Optional[Dict] = None) -> dict:
+                       ai_options: Optional[Dict] = None,
+                       ecc_symbols: int = 10) -> dict:
     """Async Celery task to embed an encrypted message into a video.
 
     bind=True gives access to `self` so the task can call
@@ -430,10 +440,16 @@ def embed_message_task(self, video_path: str, message: str, password: str,
             'current_step': 'Embedding encrypted data...'
         })
 
+        # VideoService.read_frames deduplicates indices, so count unique frames
+        total_frames = len(set(frames))
+
         def embed_progress(progress, step):
+            frame_num = round(progress / 100 * total_frames)
             self.update_state(state='PROGRESS', meta={
                 'progress': 50 + (progress * 0.2),  # 50-70%
-                'current_step': step
+                'current_step': step,
+                'frame_current': frame_num,
+                'frame_total': total_frames,
             })
 
         # Progress callback for the video-writing stage (maps to 70-95%).
@@ -459,15 +475,21 @@ def embed_message_task(self, video_path: str, message: str, password: str,
             cipher_mode=cipher_mode,
             output_folder=output_folder,
             ai_options=ai_options,
+            ecc_symbols=ecc_symbols,
             read_progress=read_progress,
             embed_progress=embed_progress,
             write_progress=write_progress
         )
 
-        # Mark as fully complete in the result backend.
+        # embed_message stops once the payload is fully embedded, so the last
+        # callback may report fewer frames than requested. Emit a terminal
+        # frame-progress update from the actual frames used.
+        frames_used = pipeline_result.get('frames_used', total_frames)
         self.update_state(state='PROGRESS', meta={
             'progress': 100,
-            'current_step': 'Complete!'
+            'current_step': 'Complete!',
+            'frame_current': frames_used,
+            'frame_total': frames_used,
         })
 
         return pipeline_result
@@ -488,7 +510,8 @@ def embed_message_task(self, video_path: str, message: str, password: str,
 def extract_message_task(self, video_path: str, password: str,
                          start_frame: int, end_frame: int,
                          encryption_strength: str, cipher_mode: str,
-                         ai_options: Optional[Dict] = None) -> dict:
+                         ai_options: Optional[Dict] = None,
+                         ecc_symbols: int = 10) -> dict:
     """Async Celery task to extract a hidden message from a video.
 
     Mirrors embed_message_task in structure.  Decryption requires the
@@ -548,10 +571,15 @@ def extract_message_task(self, video_path: str, password: str,
             'current_step': 'Extracting hidden data...'
         })
 
+        total_extract_frames = end_frame - start_frame
+
         def extract_progress(progress, step):
+            frame_num = round(progress / 100 * total_extract_frames)
             self.update_state(state='PROGRESS', meta={
                 'progress': 55 + (progress * 0.25),  # 55-80%
-                'current_step': step
+                'current_step': step,
+                'frame_current': frame_num,
+                'frame_total': total_extract_frames,
             })
 
         # Delegate to the shared pipeline function.
@@ -563,6 +591,7 @@ def extract_message_task(self, video_path: str, password: str,
             encryption_strength=encryption_strength,
             cipher_mode=cipher_mode,
             ai_options=ai_options,
+            ecc_symbols=ecc_symbols,
             read_progress=read_progress,
             extract_progress=extract_progress
         )
@@ -573,9 +602,15 @@ def extract_message_task(self, video_path: str, password: str,
             'current_step': 'Decrypting message...'
         })
 
+        # extract_message breaks out of its loop before the callback once
+        # enough bits are gathered (a one-frame extraction never fires it), so
+        # emit a terminal frame-progress update from the actual frame count.
+        frames_processed = pipeline_result.get('frames_processed', total_extract_frames)
         self.update_state(state='PROGRESS', meta={
             'progress': 100,
-            'current_step': 'Complete!'
+            'current_step': 'Complete!',
+            'frame_current': frames_processed,
+            'frame_total': frames_processed,
         })
 
         return pipeline_result
