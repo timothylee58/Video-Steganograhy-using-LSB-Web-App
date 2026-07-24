@@ -137,129 +137,131 @@ def run_embed_pipeline(*,
     Returns a result dict containing output_file_id (used by /api/download),
     embedding statistics, encryption config, and AI metadata.
     """
-    from app.services import CryptoService, VideoService, SteganographyService
+    from app.metrics import track_pipeline
+    with track_pipeline('embed', ecc_symbols=ecc_symbols):
+        from app.services import CryptoService, VideoService, SteganographyService
 
-    # Step 1: Encrypt the message.
-    # encrypted_data is the raw ciphertext bundle (salt + IV/nonce + ciphertext).
-    encrypted_data, _metadata = CryptoService.encrypt(
-        message, password, encryption_strength, cipher_mode
-    )
+        # Step 1: Encrypt the message.
+        # encrypted_data is the raw ciphertext bundle (salt + IV/nonce + ciphertext).
+        encrypted_data, _metadata = CryptoService.encrypt(
+            message, password, encryption_strength, cipher_mode
+        )
 
-    # Step 2: Read the requested frames from disk.
-    # VideoService returns a list of (frame_index, numpy_array) tuples.
-    frame_data = VideoService.read_frames(video_path, frames, read_progress)
-    frame_total = len(frame_data)
-    if len(frame_data) == 0:
-        raise ValueError("No valid frames could be read")
+        # Step 2: Read the requested frames from disk.
+        # VideoService returns a list of (frame_index, numpy_array) tuples.
+        frame_data = VideoService.read_frames(video_path, frames, read_progress)
+        frame_total = len(frame_data)
+        if len(frame_data) == 0:
+            raise ValueError("No valid frames could be read")
 
-    # Resolve AI embedding parameters (bit plane, channel mode, etc.).
-    regions_by_frame = None
-    _unused, bit_position, channel_mode, caption_style, platform = _build_ai_embed_params(ai_options)
+        # Resolve AI embedding parameters (bit plane, channel mode, etc.).
+        regions_by_frame = None
+        _unused, bit_position, channel_mode, caption_style, platform = _build_ai_embed_params(ai_options)
 
-    caption = None
-    suspicion_before = None
-    suspicion_after = None
+        caption = None
+        suspicion_before = None
+        suspicion_after = None
 
-    # Step 3 (optional): Apply AI-powered enhancements.
-    if ai_options:
-        from app.services.ai_service import AIService
-
-        # Run steganalysis on the first frame before embedding to provide
-        # a baseline suspicion score the user can compare against.
-        if ai_options.get('detect_suspicious'):
-            try:
-                suspicion_before = AIService.detect_steganography_patterns(frame_data[0][1])
-            except Exception:
-                suspicion_before = None
-
-        # Platform optimization converts frames to the most robust color
-        # space and region configuration for the target social media platform.
-        if platform:
-            optimized_frames = []
-            for frame_idx, frame in frame_data:
-                try:
-                    optimized_frame, _cfg = AIService.optimize_for_social_media(frame, platform)
-                    optimized_frames.append((frame_idx, optimized_frame))
-                except Exception:
-                    optimized_frames.append((frame_idx, frame))
-            frame_data = optimized_frames
-
-        # Content-aware embedding: analyse each frame to find high-texture
-        # regions where hidden bits will be statistically less detectable.
-        if ai_options.get('content_aware'):
-            regions_by_frame = {}
-            for frame_idx, frame in frame_data:
-                try:
-                    analysis = AIService.analyze_frame_for_embedding(frame)
-                    regions_by_frame[frame_idx] = analysis.get('optimal_regions', [])
-                except Exception:
-                    regions_by_frame[frame_idx] = None
-
-        # Generate an innocent-looking AI caption for the output video
-        # so it doesn't arouse suspicion when shared.
-        if ai_options.get('generate_caption'):
-            try:
-                import asyncio
-                ai = AIService()
-                style = caption_style or 'casual'
-                caption = asyncio.run(ai.generate_innocent_caption(video_path, style=style))
-            except Exception:
-                caption = None
-
-    # Step 4: Embed the encrypted bytes into the selected video frames
-    # using Least-Significant-Bit substitution with Reed-Solomon protection.
-    # Clamp defensively, mirroring run_extract_pipeline, so both codec
-    # directions always use identical Reed-Solomon parameters.
-    ecc_symbols = max(2, min(ecc_symbols, 30))
-    result = SteganographyService.embed_message(
-        frame_data,
-        encrypted_data,
-        embed_progress,
-        regions_by_frame=regions_by_frame,
-        bit_position=bit_position,
-        channel_mode=channel_mode,
-        ecc_symbols=ecc_symbols,
-    )
-
-    # Step 5: Write the output video.
-    # A UUID output_id is generated to form the file name so it can later be
-    # retrieved via GET /api/download/<output_id>.
-    import uuid
-    output_id = str(uuid.uuid4())
-    output_path = os.path.join(output_folder, f"{output_id}_output.avi")
-    final_path = VideoService.write_video(output_path, result['modified_frames'], video_path, write_progress)
-
-    # Optional: re-run steganalysis on a sample of the modified frames to
-    # show how suspicion score changed after embedding.
-    if ai_options and ai_options.get('detect_suspicious'):
-        try:
+        # Step 3 (optional): Apply AI-powered enhancements.
+        if ai_options:
             from app.services.ai_service import AIService
-            # Sample up to 3 modified frames to keep this step fast.
-            sampled = list(result['modified_frames'].values())[:3]
-            if sampled:
-                suspicion_after = AIService.detect_steganography_patterns(sampled[0])
-        except Exception:
-            suspicion_after = None
 
-    return {
-        'success': True,
-        'output_file_id': output_id,
-        'output_path': final_path,
-        'bits_embedded': result['bits_embedded'],
-        'frames_used': result['frames_used'],
-        'encryption_strength': encryption_strength,
-        'cipher_mode': cipher_mode,
-        'message_length': len(message),
-        'ai': {
-            'content_aware': bool(ai_options.get('content_aware')) if ai_options else False,
-            'smart_compression_platform': platform,
-            'bit_position': bit_position,
-            'channel_mode': channel_mode,
-            'caption': caption,
-            'suspicion_before': suspicion_before,
-            'suspicion_after': suspicion_after,
+            # Run steganalysis on the first frame before embedding to provide
+            # a baseline suspicion score the user can compare against.
+            if ai_options.get('detect_suspicious'):
+                try:
+                    suspicion_before = AIService.detect_steganography_patterns(frame_data[0][1])
+                except Exception:
+                    suspicion_before = None
+
+            # Platform optimization converts frames to the most robust color
+            # space and region configuration for the target social media platform.
+            if platform:
+                optimized_frames = []
+                for frame_idx, frame in frame_data:
+                    try:
+                        optimized_frame, _cfg = AIService.optimize_for_social_media(frame, platform)
+                        optimized_frames.append((frame_idx, optimized_frame))
+                    except Exception:
+                        optimized_frames.append((frame_idx, frame))
+                frame_data = optimized_frames
+
+            # Content-aware embedding: analyse each frame to find high-texture
+            # regions where hidden bits will be statistically less detectable.
+            if ai_options.get('content_aware'):
+                regions_by_frame = {}
+                for frame_idx, frame in frame_data:
+                    try:
+                        analysis = AIService.analyze_frame_for_embedding(frame)
+                        regions_by_frame[frame_idx] = analysis.get('optimal_regions', [])
+                    except Exception:
+                        regions_by_frame[frame_idx] = None
+
+            # Generate an innocent-looking AI caption for the output video
+            # so it doesn't arouse suspicion when shared.
+            if ai_options.get('generate_caption'):
+                try:
+                    import asyncio
+                    ai = AIService()
+                    style = caption_style or 'casual'
+                    caption = asyncio.run(ai.generate_innocent_caption(video_path, style=style))
+                except Exception:
+                    caption = None
+
+        # Step 4: Embed the encrypted bytes into the selected video frames
+        # using Least-Significant-Bit substitution with Reed-Solomon protection.
+        # Clamp defensively, mirroring run_extract_pipeline, so both codec
+        # directions always use identical Reed-Solomon parameters.
+        ecc_symbols = max(2, min(ecc_symbols, 30))
+        result = SteganographyService.embed_message(
+            frame_data,
+            encrypted_data,
+            embed_progress,
+            regions_by_frame=regions_by_frame,
+            bit_position=bit_position,
+            channel_mode=channel_mode,
+            ecc_symbols=ecc_symbols,
+        )
+
+        # Step 5: Write the output video.
+        # A UUID output_id is generated to form the file name so it can later be
+        # retrieved via GET /api/download/<output_id>.
+        import uuid
+        output_id = str(uuid.uuid4())
+        output_path = os.path.join(output_folder, f"{output_id}_output.avi")
+        final_path = VideoService.write_video(output_path, result['modified_frames'], video_path, write_progress)
+
+        # Optional: re-run steganalysis on a sample of the modified frames to
+        # show how suspicion score changed after embedding.
+        if ai_options and ai_options.get('detect_suspicious'):
+            try:
+                from app.services.ai_service import AIService
+                # Sample up to 3 modified frames to keep this step fast.
+                sampled = list(result['modified_frames'].values())[:3]
+                if sampled:
+                    suspicion_after = AIService.detect_steganography_patterns(sampled[0])
+            except Exception:
+                suspicion_after = None
+
+        return {
+            'success': True,
+            'output_file_id': output_id,
+            'output_path': final_path,
+            'bits_embedded': result['bits_embedded'],
+            'frames_used': result['frames_used'],
+            'encryption_strength': encryption_strength,
+            'cipher_mode': cipher_mode,
+            'message_length': len(message),
+            'ai': {
+                'content_aware': bool(ai_options.get('content_aware')) if ai_options else False,
+                'smart_compression_platform': platform,
+                'bit_position': bit_position,
+                'channel_mode': channel_mode,
+                'caption': caption,
+                'suspicion_before': suspicion_before,
+                'suspicion_after': suspicion_after,
+            }
         }
-    }
 
 
 # ------------------------------------------------------------------ #
@@ -291,89 +293,91 @@ def run_extract_pipeline(*,
     The caller MUST provide the same encryption_strength, cipher_mode, and
     AI options that were used during embedding, otherwise decryption will fail.
     """
-    from app.services import CryptoService, VideoService, SteganographyService
-    from app.services.ai_service import AIService
+    from app.metrics import track_pipeline
+    with track_pipeline('extract', ecc_symbols=ecc_symbols):
+        from app.services import CryptoService, VideoService, SteganographyService
+        from app.services.ai_service import AIService
 
-    # Step 1: Validate the frame range before reading any data.
-    if not VideoService.validate_frame_range(video_path, start_frame, end_frame):
-        raise ValueError("Invalid frame range for this video")
+        # Step 1: Validate the frame range before reading any data.
+        if not VideoService.validate_frame_range(video_path, start_frame, end_frame):
+            raise ValueError("Invalid frame range for this video")
 
-    # Build the list of frame indices to read (contiguous range).
-    frame_indices = list(range(start_frame, end_frame))
-    frame_data = VideoService.read_frames(video_path, frame_indices, read_progress)
-    if len(frame_data) == 0:
-        raise ValueError("No valid frames could be read")
+        # Build the list of frame indices to read (contiguous range).
+        frame_indices = list(range(start_frame, end_frame))
+        frame_data = VideoService.read_frames(video_path, frame_indices, read_progress)
+        if len(frame_data) == 0:
+            raise ValueError("No valid frames could be read")
 
-    # Default extraction parameters (must match embedding parameters).
-    regions_by_frame = None
-    bit_position = 0
-    channel_mode = 'rgb'
-    suspicion = None
+        # Default extraction parameters (must match embedding parameters).
+        regions_by_frame = None
+        bit_position = 0
+        channel_mode = 'rgb'
+        suspicion = None
 
-    # Step 3 (optional): Mirror the AI options used during embedding.
-    if ai_options:
-        # Apply platform-specific bit plane / channel mode settings.
-        platform = ai_options.get('smart_compression_platform') or None
-        if platform:
-            cfg = AIService.get_platform_config(platform)
-            bit_position = 1 if cfg.get('use_second_lsb') else 0
-            channel_mode = 'luma' if cfg.get('prefer_luma') else 'rgb'
+        # Step 3 (optional): Mirror the AI options used during embedding.
+        if ai_options:
+            # Apply platform-specific bit plane / channel mode settings.
+            platform = ai_options.get('smart_compression_platform') or None
+            if platform:
+                cfg = AIService.get_platform_config(platform)
+                bit_position = 1 if cfg.get('use_second_lsb') else 0
+                channel_mode = 'luma' if cfg.get('prefer_luma') else 'rgb'
 
-        # Explicit overrides take precedence over platform defaults.
-        if ai_options.get('use_second_lsb') is True:
-            bit_position = 1
-        if ai_options.get('prefer_luma') is True:
-            channel_mode = 'luma'
-        if ai_options.get('prefer_luma') is False and 'prefer_luma' in ai_options:
-            channel_mode = 'rgb'
+            # Explicit overrides take precedence over platform defaults.
+            if ai_options.get('use_second_lsb') is True:
+                bit_position = 1
+            if ai_options.get('prefer_luma') is True:
+                channel_mode = 'luma'
+            if ai_options.get('prefer_luma') is False and 'prefer_luma' in ai_options:
+                channel_mode = 'rgb'
 
-        # Reconstruct the content-aware regions for the same frames.
-        # This is necessary only when content_aware was used during embedding.
-        if ai_options.get('content_aware'):
-            regions_by_frame = {}
-            for frame_idx, frame in frame_data:
+            # Reconstruct the content-aware regions for the same frames.
+            # This is necessary only when content_aware was used during embedding.
+            if ai_options.get('content_aware'):
+                regions_by_frame = {}
+                for frame_idx, frame in frame_data:
+                    try:
+                        analysis = AIService.analyze_frame_for_embedding(frame)
+                        regions_by_frame[frame_idx] = analysis.get('optimal_regions', [])
+                    except Exception:
+                        regions_by_frame[frame_idx] = None
+
+            # Run steganalysis on the first frame to help the user assess risk.
+            if ai_options.get('detect_suspicious'):
                 try:
-                    analysis = AIService.analyze_frame_for_embedding(frame)
-                    regions_by_frame[frame_idx] = analysis.get('optimal_regions', [])
+                    suspicion = AIService.detect_steganography_patterns(frame_data[0][1])
                 except Exception:
-                    regions_by_frame[frame_idx] = None
+                    suspicion = None
 
-        # Run steganalysis on the first frame to help the user assess risk.
-        if ai_options.get('detect_suspicious'):
-            try:
-                suspicion = AIService.detect_steganography_patterns(frame_data[0][1])
-            except Exception:
-                suspicion = None
+        ecc_symbols = max(2, min(ecc_symbols, 30))
+        # Step 4: Extract the raw (encrypted) bytes from the video frames.
+        encrypted_data = SteganographyService.extract_message(
+            frame_data,
+            extract_progress,
+            regions_by_frame=regions_by_frame,
+            bit_position=bit_position,
+            channel_mode=channel_mode,
+            ecc_symbols=ecc_symbols,
+        )
 
-    ecc_symbols = max(2, min(ecc_symbols, 30))
-    # Step 4: Extract the raw (encrypted) bytes from the video frames.
-    encrypted_data = SteganographyService.extract_message(
-        frame_data,
-        extract_progress,
-        regions_by_frame=regions_by_frame,
-        bit_position=bit_position,
-        channel_mode=channel_mode,
-        ecc_symbols=ecc_symbols,
-    )
+        # Step 5: Decrypt the extracted bytes to recover the original plaintext.
+        decrypted_message = CryptoService.decrypt(
+            encrypted_data, password, encryption_strength, cipher_mode
+        )
 
-    # Step 5: Decrypt the extracted bytes to recover the original plaintext.
-    decrypted_message = CryptoService.decrypt(
-        encrypted_data, password, encryption_strength, cipher_mode
-    )
-
-    return {
-        'success': True,
-        'message': decrypted_message,
-        'frames_processed': len(frame_data),
-        'data_size_bytes': len(encrypted_data),
-        'ai': {
-            'content_aware': bool(ai_options.get('content_aware')) if ai_options else False,
-            'smart_compression_platform': ai_options.get('smart_compression_platform') if ai_options else None,
-            'bit_position': bit_position,
-            'channel_mode': channel_mode,
-            'suspicion': suspicion
+        return {
+            'success': True,
+            'message': decrypted_message,
+            'frames_processed': len(frame_data),
+            'data_size_bytes': len(encrypted_data),
+            'ai': {
+                'content_aware': bool(ai_options.get('content_aware')) if ai_options else False,
+                'smart_compression_platform': ai_options.get('smart_compression_platform') if ai_options else None,
+                'bit_position': bit_position,
+                'channel_mode': channel_mode,
+                'suspicion': suspicion
+            }
         }
-    }
 
 
 # ------------------------------------------------------------------ #

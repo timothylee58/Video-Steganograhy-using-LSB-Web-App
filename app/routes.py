@@ -68,6 +68,20 @@ def health():
     return jsonify({'status': 'healthy', 'version': '2.0.0'})
 
 
+@main_bp.route('/metrics')
+def metrics():
+    """Prometheus scrape endpoint.
+
+    Registered on main_bp (not api_bp) so it lands at the root '/metrics'
+    path Fly's managed Prometheus scraper (see the [[metrics]] block in
+    fly.toml) and most external Prometheus configs expect by default,
+    rather than under '/api/metrics'.
+    """
+    from app.metrics import render_metrics
+    body, content_type = render_metrics()
+    return body, 200, {'Content-Type': content_type}
+
+
 # ============= API Routes =============
 
 @api_bp.route('/upload', methods=['POST'])
