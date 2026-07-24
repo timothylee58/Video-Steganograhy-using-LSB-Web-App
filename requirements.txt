@@ -29,6 +29,9 @@ reedsolo>=1.7.0
 python-socketio>=5.8.0
 eventlet>=0.33.0
 
+# Monitoring
+prometheus-client>=0.20.0
+
 # Utilities
 python-dotenv>=1.0.0
 # Register Eventlet worker entry point (required for `gunicorn -k eventlet` on Render).

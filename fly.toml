@@ -46,3 +46,7 @@ primary_region = 'sin'
     grace_period = '60s'
     method = 'GET'
     path = '/health'
+
+[[metrics]]
+  port = 8080
+  path = '/metrics'
